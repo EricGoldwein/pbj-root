@@ -51,6 +51,58 @@ body {
 .nav-toggle { display: none; flex-direction: column; cursor: pointer; gap: 4px; }
 .nav-toggle span { width: 25px; height: 3px; background: white; }
 .content { padding: 48px 20px; max-width: 720px; margin: 0 auto; }
+
+.content--data-sources {
+  max-width: 1040px;
+}
+
+.source-vintage-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+}
+
+.source-vintage-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.9rem;
+}
+
+.source-vintage-table th,
+.source-vintage-table td {
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  overflow-wrap: anywhere;
+}
+
+.source-vintage-table th {
+  color: #e2e8f0;
+  font-weight: 650;
+}
+
+.source-vintage-table th:nth-child(1),
+.source-vintage-table td:nth-child(1) {
+  width: 23%;
+}
+
+.source-vintage-table th:nth-child(2),
+.source-vintage-table td:nth-child(2) {
+  width: 16%;
+}
+
+.source-vintage-table th:nth-child(3),
+.source-vintage-table td:nth-child(3) {
+  width: 16%;
+}
+
+.source-vintage-table th:nth-child(4),
+.source-vintage-table td:nth-child(4) {
+  width: 45%;
+}
+
 .content-box {
   background: #1e293b;
   border-radius: 12px;
@@ -78,6 +130,47 @@ body {
   width: 100%;
   box-sizing: border-box;
 }
+
+@media (max-width: 640px) {
+  .source-vintage-table,
+  .source-vintage-table tbody,
+  .source-vintage-table tr,
+  .source-vintage-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .source-vintage-table thead {
+    display: none;
+  }
+
+  .source-vintage-table tr {
+    padding: 0.7rem 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+  }
+
+  .source-vintage-table td {
+    border: 0;
+    padding: 0.18rem 0;
+  }
+
+  .source-vintage-table td::before {
+    content: attr(data-label) ": ";
+    color: #94a3b8;
+    font-weight: 600;
+  }
+
+  .source-vintage-table td[data-label="Dataset"] {
+    font-weight: 650;
+    color: #e2e8f0;
+    padding-bottom: 0.3rem;
+  }
+
+  .source-vintage-table td[data-label="Dataset"]::before {
+    content: "";
+  }
+}
+
 @media (max-width: 768px) {
   .content { padding: 24px 16px; }
   .content-box { padding: 1.5rem; }

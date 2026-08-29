@@ -229,51 +229,96 @@ def build_public_source_vintages(app_root: Path | None = None) -> list[dict[str,
 
 
 def render_data_sources_vintage_table_html(rows: list[dict[str, Any]]) -> str:
-    """Compact HTML table for /data-sources."""
+    """Render the current production source contract for /data-sources."""
     out = [
-        '<table class="meta-table">',
-        "<thead><tr><th>Dataset</th><th>PBJ320 vintage</th><th>Official publication</th><th>Used for</th></tr></thead>",
+        '<div class="source-vintage-table-wrap">',
+        '<table class="meta-table source-vintage-table">',
+        "<thead><tr>"
+        "<th>Dataset</th>"
+        "<th>Current</th>"
+        "<th>Source</th>"
+        "<th>Used for</th>"
+        "</tr></thead>",
         "<tbody>",
     ]
+
     for row in rows:
-        used = ", ".join(row.get("used_in") or [])
-        dataset_label = html.escape(str(row.get("display_name") or "?"))
+        dataset = html.escape(str(row.get("display_name") or "?"))
+        vintage = html.escape(str(row.get("source_vintage") or "?"))
+        used = html.escape(", ".join(row.get("used_in") or []) or "?")
+
         source_rows = row.get("source_urls") or []
+        source_links = []
 
         if source_rows:
-            links = []
             for source in source_rows:
                 label = html.escape(str(source.get("label") or "Source"))
                 url = html.escape(str(source.get("url") or ""), quote=True)
                 if url:
-                    links.append(
+                    source_links.append(
                         f'<a href="{url}" target="_blank" rel="noopener">{label}</a>'
                     )
-            if links:
-                dataset_label += (
-                    '<div style="margin-top:.18rem;font-size:.8rem">'
-                    + " ? ".join(links)
-                    + "</div>"
+        else:
+            url = html.escape(str(row.get("source_url") or ""), quote=True)
+            if url:
+                label = {
+                    "cms.pbj_nurse_staffing": "CMS",
+                    "cms.provider_info": "CMS",
+                    "cms.sff_pdf_list": "CMS",
+                    "cms.chain_performance": "CMS",
+                    "cms.macpac_state_staffing": "MACPAC",
+                    "fec.contributions": "FEC",
+                }.get(str(row.get("source_id") or ""), "Source")
+
+                source_links.append(
+                    f'<a href="{url}" target="_blank" rel="noopener">{label}</a>'
                 )
+
+        source_html = " &middot; ".join(source_links) or "?"
+
         out.append(
             "<tr>"
-            f"<td>{dataset_label}</td>"
-            f"<td>{row.get('source_vintage') or '—'}</td>"
-            f"<td>{row.get('official_publication_date') or '—'}</td>"
-            f"<td>{used or '—'}</td>"
+            f'<td data-label="Dataset">{dataset}</td>'
+            f'<td data-label="Current">{vintage}</td>'
+            f'<td data-label="Source">{source_html}</td>'
+            f'<td data-label="Used for">{used}</td>'
             "</tr>"
         )
-    out.append("</tbody></table>")
+
+    out.extend(["</tbody></table>", "</div>"])
     return "\n".join(out)
 
+
+def _page_last_updated_label(rows: list[dict[str, Any]]) -> str:
+    """Newest dated governed/public source represented on the page."""
+    dated: list[tuple[int, int]] = []
+
+    for row in rows:
+        release_id = str(row.get("release_id") or "").strip()
+
+        match = re.match(r"^(\d{4})-(\d{2})(?:-\d{2})?$", release_id)
+        if match:
+            dated.append((int(match.group(1)), int(match.group(2))))
+            continue
+
+        match = re.match(r"^CY(\d{4})Q([1-4])$", release_id, re.IGNORECASE)
+        if match:
+            year = int(match.group(1))
+            quarter = int(match.group(2))
+            dated.append((year, quarter * 3))
+
+    if not dated:
+        return "?"
+
+    year, month = max(dated)
+    return datetime(year, month, 1).strftime("%B %Y")
 
 def inject_data_sources_vintage_html(html_content: str, app_root: Path | None = None) -> str:
     rows = build_public_source_vintages(app_root)
     table = render_data_sources_vintage_table_html(rows)
     html_content = html_content.replace("__PUBLIC_SOURCE_VINTAGE_TABLE__", table)
-    pi = next((r for r in rows if r.get("source_id") == "cms.provider_info"), {})
     html_content = html_content.replace(
         "__PAGE_LAST_UPDATED__",
-        str(pi.get("source_vintage") or "UNKNOWN"),
+        _page_last_updated_label(rows),
     )
     return html_content

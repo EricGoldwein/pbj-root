@@ -584,15 +584,47 @@ def _check_sff_public_artifacts(errors: List[str], notes: List[str]) -> None:
 
     doc = public_data.get("document_date") or {}
     public_release = str(doc.get("source_release") or "").strip()
+
+    # The activated governed release is authoritative. Raw PDFs are immutable
+    # source evidence/cache and may legitimately be absent from a clean deploy checkout.
+    governed_path = REPO_ROOT / "data_sources" / "cms" / "sff" / "current_release.json"
+    governed_release = ""
+    governed_url = ""
+
+    if not governed_path.is_file():
+        errors.append("governed SFF current_release.json missing")
+    else:
+        try:
+            governed = json.loads(governed_path.read_text(encoding="utf-8"))
+            governed_release = str(governed.get("source_release") or "").strip()
+            governed_url = str(governed.get("source_url") or "").strip()
+        except Exception as exc:
+            errors.append(f"could not parse governed SFF current_release.json: {exc}")
+
+    if not governed_release:
+        errors.append("governed SFF current_release.json missing source_release")
+
+    if not governed_url or not re.match(r"^https://", governed_url):
+        errors.append("governed SFF current_release.json missing valid HTTPS source_url")
+
+    if governed_release and public_release != governed_release:
+        errors.append(
+            "SFF public JSON source_release mismatch vs governed release: "
+            f"public={public_release or 'n/a'} governed={governed_release}"
+        )
+
+    # Raw PDF is supporting evidence only, not the authority for freshness.
     latest_pdf = find_latest_raw_pdf()
     if latest_pdf is None:
-        errors.append("no raw SFF PDF found under data_sources/cms/sff/raw")
+        notes.append("No raw SFF PDF in deploy checkout; governed release metadata is authoritative.")
     else:
-        expected_release = _pdf_release_tag(latest_pdf.name)
-        if expected_release and public_release != expected_release:
-            errors.append(
-                "SFF public JSON source_release mismatch: "
-                f"public={public_release or 'n/a'} newest_pdf={expected_release} ({latest_pdf.name})"
+        raw_release = _pdf_release_tag(latest_pdf.name)
+        if raw_release == governed_release:
+            notes.append(f"Raw SFF evidence present for governed release: {latest_pdf.name}")
+        elif raw_release:
+            notes.append(
+                f"Newest raw SFF PDF in checkout is {raw_release} ({latest_pdf.name}); "
+                f"governed release {governed_release or 'n/a'} remains authoritative."
             )
 
     facilities = public_data.get("facilities") or []
@@ -615,6 +647,11 @@ def _check_sff_public_artifacts(errors: List[str], notes: List[str]) -> None:
             if public_release and derived_release and public_release != derived_release:
                 errors.append(
                     f"SFF derived vs public source_release mismatch: derived={derived_release} public={public_release}"
+                )
+            if governed_release and derived_release != governed_release:
+                errors.append(
+                    "SFF derived JSON source_release mismatch vs governed release: "
+                    f"derived={derived_release or 'n/a'} governed={governed_release}"
                 )
         except Exception as exc:
             errors.append(f"could not parse derived SFF JSON: {exc}")

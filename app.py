@@ -496,6 +496,17 @@ def _pbj_quarter_display_for_footer() -> str:
     return q_disp
 
 
+@app.route('/api/public-source-vintages')
+def api_public_source_vintages():
+    """Production source vintage metadata for public pages."""
+    try:
+        from public_source_vintage import build_public_source_vintages
+
+        return jsonify({"rows": build_public_source_vintages(Path(APP_ROOT))})
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"rows": [], "error": str(exc)}), 500
+
+
 @app.route('/api/dates')
 def api_dates():
     """API endpoint to get dynamic date information (used by SFF page for source text).
@@ -1765,6 +1776,13 @@ def _serve_public_html(filename: str, *, inject_csrf: bool = False):
         html_content = inject_public_html_cms_urls(html_content)
     except ImportError:
         pass
+    if filename == 'data-sources.html':
+        try:
+            from public_source_vintage import inject_data_sources_vintage_html
+
+            html_content = inject_data_sources_vintage_html(html_content, Path(APP_ROOT))
+        except ImportError:
+            pass
     # Inject PBJ coverage years from national_quarterly_metrics.csv (e.g. 2017-2026).
     if '__PBJ_DATA_RANGE' in html_content:
         try:
@@ -6268,8 +6286,9 @@ def _related_native_insights_html(current_slug: str, post: dict, base_url: str, 
         u = html.escape(o.get('url') or f'/insights/{o.get("slug") or ""}', quote=True)
         d = html.escape(_format_insights_hub_date(o.get('date') or o.get('sort_date') or ''))
         lis.append(f'<li><a href="{u}">{t}</a><span class="related-meta">{d}</span></li>')
+    sff_vintage = html.escape(get_sff_posting_display())
     sff_li = (
-        '<li><a href="/sff">U.S. Special Focus Facilities (July 2026)</a>'
+        f'<li><a href="/sff">U.S. Special Focus Facilities ({sff_vintage})</a>'
         '<span class="related-meta">CMS SFF program</span></li>'
     )
     return (
@@ -14277,8 +14296,26 @@ def render_methodology_block(*, variant: str = 'default'):
         data_range = f'2017-{datetime.now().year}'
     # Display with en-dash (2017–2026); data_range from CSV is hyphenated.
     data_range_display = data_range.replace('-', '\u2013')
+    try:
+        from public_source_vintage import source_vintage_label
+
+        pi_vintage = source_vintage_label('cms.provider_info')
+        macpac_vintage = source_vintage_label('cms.macpac_state_staffing')
+    except Exception:
+        pi_vintage = '—'
+        macpac_vintage = 'March 2022 compendium'
+    pi_clause = (
+        f'Provider Information ({pi_vintage})'
+        if pi_vintage and pi_vintage != '—'
+        else 'Provider Information'
+    )
+    macpac_clause = (
+        macpac_vintage
+        if macpac_vintage and macpac_vintage != '—'
+        else 'MACPAC (2022)'
+    )
     body = f'''<div class="pbj-details-content">
-<p style="margin: 0 0 0.6rem 0; font-size: 0.9rem; color: rgba(226,232,240,0.9);">Staffing from CMS Payroll-Based Journal (PBJ) public files ({data_range_display}), plus Provider Information and chain data where shown. State staffing context via MACPAC (2022). <a href="/data-sources#methodology">Methodology</a> · <a href="/phoebe">PBJ explained</a>.</p>
+<p style="margin: 0 0 0.6rem 0; font-size: 0.9rem; color: rgba(226,232,240,0.9);">Staffing from CMS Payroll-Based Journal (PBJ) public nurse files ({data_range_display}), plus {pi_clause} and chain data where shown. State staffing context via {macpac_clause}. <a href="/data-sources#methodology">Methodology</a> · <a href="/phoebe">PBJ explained</a>.</p>
 <p style="margin: 0 0 0.35rem 0; font-weight: 600; font-size: 0.9rem; color: #818cf8;">Metrics</p>
 <ul style="font-size: 0.875rem; color: rgba(226,232,240,0.88); margin: 0 0 0.75rem 0;">
 <li><strong><a href="/what-is-hprd">Hours Per Resident Day (HPRD)</a>:</strong> Total staff hours ÷ average residents. Example: 350 hours for 100 residents = 3.5 HPRD.</li>
@@ -20874,11 +20911,29 @@ def _find_latest_sff_pdf_filename() -> str | None:
     return latest_by_mtime.name
 
 
+def _load_current_sff_release_metadata() -> dict:
+    """Load governed current SFF release metadata when available."""
+    path = Path(__file__).resolve().parent / "data_sources" / "cms" / "sff" / "current_release.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
 def get_sff_posting_display() -> str:
-    """Return SFF posting display like 'Feb. 2026' based on latest local PDF."""
+    """Return display vintage for the governed current SFF posting."""
+    release = _load_current_sff_release_metadata()
+    release_id = str(release.get("source_release") or release.get("posting_period") or "").strip()
+    match = re.fullmatch(r"(\d{4})-(\d{2})", release_id)
+    if match:
+        year = int(match.group(1))
+        month_num = int(match.group(2))
+        return f"{_SFF_NUM_TO_LABEL.get(month_num, 'Unknown')} {year}"
+
     latest_name = _find_latest_sff_pdf_filename()
     if not latest_name:
-        return 'Unknown'
+        return "Unknown"
     parts = _extract_sff_pdf_parts(latest_name)
     if not parts:
         return latest_name
@@ -20887,10 +20942,16 @@ def get_sff_posting_display() -> str:
 
 
 def get_sff_source_url() -> str:
-    """Return link to latest hosted PBJ320 SFF PDF when available; fallback to CMS SFF program page."""
+    """Return authoritative CMS URL for the governed current SFF posting."""
+    release = _load_current_sff_release_metadata()
+    source_url = str(release.get("source_url") or "").strip()
+    if source_url:
+        return source_url
+
     latest_name = _find_latest_sff_pdf_filename()
     if latest_name:
         return f"/downloads/sff/{latest_name}"
+
     from site_public_config import CMS_SFF_PROGRAM_URL
     return CMS_SFF_PROGRAM_URL
 

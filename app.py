@@ -225,7 +225,6 @@ except ImportError:
 # Defer pandas import so workers can respond to /health before heavy imports (Render port check).
 _pandas_module = None
 HAS_PANDAS = False
-_PANDAS_INIT_LOCK = threading.Lock()
 
 def get_pd():
     """Import pandas on first use so /health can respond before workers load it."""
@@ -496,6 +495,17 @@ def _pbj_quarter_display_for_footer() -> str:
     return q_disp
 
 
+@app.route('/api/public-source-vintages')
+def api_public_source_vintages():
+    """Production source vintage metadata for public pages."""
+    try:
+        from public_source_vintage import build_public_source_vintages
+
+        return jsonify({"rows": build_public_source_vintages(Path(APP_ROOT))})
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"rows": [], "error": str(exc)}), 500
+
+
 @app.route('/api/dates')
 def api_dates():
     """API endpoint to get dynamic date information (used by SFF page for source text).
@@ -602,10 +612,7 @@ def _entity_portfolio_ai_line(entity_id) -> str:
     except (TypeError, ValueError):
         return ''
     try:
-        # This line only needs roster/state counts and CMS chain stars. Attaching
-        # PBJ rows here used to rebuild a national latest-HPRD map on a provider
-        # cold request even though none of those values are consumed below.
-        _en, facilities = load_entity_facilities(eid, attach_quarterly_metrics=False)
+        _en, facilities = load_entity_facilities(eid, attach_quarterly_metrics=True)
         if not facilities:
             return ''
         chain_perf = load_chain_performance() or {}
@@ -1007,43 +1014,12 @@ def _mem_route_timer():
 
 @app.before_request
 def _ensure_pandas():
-    """Initialize pandas once without parking every request thread behind its import lock."""
-    path = request.path or '/'
-    pandas_free_exact = {
-        '/', '/index.html', '/warmup', '/sitemap.xml', '/robots.txt',
-        '/search_index.json', '/pbj-site-universal.js', '/public-search.js',
-        '/pbj-audience.js', '/pbj-audience.css', '/api/audience/config',
-        '/api/subscribe/csrf',
-    }
-    static_suffixes = (
-        '.css', '.js', '.png', '.jpg', '.jpeg', '.webp', '.svg', '.ico',
-        '.woff', '.woff2', '.txt', '.xml',
-    )
-    if (
-        path in _HEALTH_PROBE_PATHS
-        or path in pandas_free_exact
-        or path.endswith(static_suffixes)
-        or (path.endswith('.json') and not path.startswith('/api/'))
-    ):
+    """Load pandas on first non-health request so /health can respond before workers load it (Render)."""
+    if request.path in _HEALTH_PROBE_PATHS or request.path in ('/warmup', '/sitemap.xml'):
         return
     global pd
-    if pd is not None:
-        return
-    if not _PANDAS_INIT_LOCK.acquire(blocking=False):
-        return make_response(
-            'Service is warming up; retry shortly.',
-            503,
-            {
-                'Content-Type': 'text/plain; charset=utf-8',
-                'Retry-After': '2',
-                'Cache-Control': 'no-store',
-            },
-        )
-    try:
-        if pd is None:
-            pd = get_pd()
-    finally:
-        _PANDAS_INIT_LOCK.release()
+    if pd is None:
+        pd = get_pd()
 
 
 @app.before_request
@@ -1765,6 +1741,13 @@ def _serve_public_html(filename: str, *, inject_csrf: bool = False):
         html_content = inject_public_html_cms_urls(html_content)
     except ImportError:
         pass
+    if filename == 'data-sources.html':
+        try:
+            from public_source_vintage import inject_data_sources_vintage_html
+
+            html_content = inject_data_sources_vintage_html(html_content, Path(APP_ROOT))
+        except ImportError:
+            pass
     # Inject PBJ coverage years from national_quarterly_metrics.csv (e.g. 2017-2026).
     if '__PBJ_DATA_RANGE' in html_content:
         try:
@@ -2336,6 +2319,61 @@ def robots_txt():
 def llms_txt():
     from site_public_config import build_llms_txt
     return build_llms_txt(_public_site_origin()), 200, {'Content-Type': 'text/plain; charset=utf-8'}
+
+
+@app.route('/agents')
+@app.route('/agents/')
+def agents_page():
+    return _serve_public_html('agents.html')
+
+
+@app.route('/mcp', methods=['GET', 'POST', 'OPTIONS'])
+def mcp_endpoint():
+    from flask import request
+    from mcp.http_handler import handle_mcp_http
+
+    if request.method == 'OPTIONS':
+        resp = make_response('', 204)
+        resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept, Mcp-Session-Id'
+        return resp
+    return handle_mcp_http(request)
+
+
+@app.route('/api/public/provider/<ccn>.json')
+def public_provider_json(ccn):
+    from flask import jsonify
+    from pbj_public_query.facility import get_facility_record
+    from pbj_public_query.provenance import attach_citation_envelope
+
+    rec = get_facility_record(ccn)
+    if not rec:
+        return jsonify({'ok': False, 'error': 'not_found'}), 404
+    payload = attach_citation_envelope(
+        {'ok': True, **rec},
+        canonical_url=rec.get('canonical_url', ''),
+        quarter=(rec.get('period') or {}).get('quarter'),
+        methodology_url='/data-sources#methodology',
+    )
+    return jsonify(payload)
+
+
+@app.route('/api/public/owners/<pac>.json')
+def public_owner_json(pac):
+    from flask import jsonify
+    from pbj_public_query.owner import get_owner_portfolio
+    from pbj_public_query.provenance import attach_citation_envelope
+
+    rec = get_owner_portfolio(pac)
+    if not rec:
+        return jsonify({'ok': False, 'error': 'not_found'}), 404
+    payload = attach_citation_envelope(
+        {'ok': True, **rec},
+        canonical_url=rec.get('canonical_url', ''),
+        ownership_release=rec.get('ownership_release'),
+        methodology_url='/data-sources#ownership',
+    )
+    return jsonify(payload)
 
 
 @app.route('/cms-payroll-based-journal')
@@ -6268,8 +6306,9 @@ def _related_native_insights_html(current_slug: str, post: dict, base_url: str, 
         u = html.escape(o.get('url') or f'/insights/{o.get("slug") or ""}', quote=True)
         d = html.escape(_format_insights_hub_date(o.get('date') or o.get('sort_date') or ''))
         lis.append(f'<li><a href="{u}">{t}</a><span class="related-meta">{d}</span></li>')
+    sff_vintage = html.escape(get_sff_posting_display())
     sff_li = (
-        '<li><a href="/sff">U.S. Special Focus Facilities (July 2026)</a>'
+        f'<li><a href="/sff">U.S. Special Focus Facilities ({sff_vintage})</a>'
         '<span class="related-meta">CMS SFF program</span></li>'
     )
     return (
@@ -6485,9 +6524,7 @@ def serve_substack():
 @app.route('/pbj-site-universal.js')
 def serve_pbj_site_universal():
     """Single source for contact number and footer; injects into #site-footer on static pages."""
-    resp = send_from_directory(APP_ROOT, 'pbj-site-universal.js', mimetype='application/javascript')
-    resp.headers['ETag'] = f'W/"pbj-universal-{PBJ_SITE_UNIVERSAL_JS_VERSION}"'
-    return _static_cache_headers(resp, max_age=3600, immutable=False)
+    return _static_cache_headers(send_from_directory(APP_ROOT, 'pbj-site-universal.js', mimetype='application/javascript'))
 
 
 @app.route('/pbj-audience.js')
@@ -6746,39 +6783,6 @@ def generate_owner_profile_html(profile, *, robots_meta=None):
     return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'
 
 
-_OWNER_PROFILE_HTML_CACHE_MAX = 256
-_owner_profile_html_cache = OrderedDict()
-_owner_profile_html_cache_lock = threading.Lock()
-
-
-def _owner_profile_response(html_text, robots_meta=None):
-    resp = make_response(html_text)
-    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
-    # Ownership pages are backed by deploy-versioned CMS release artifacts.
-    # Let browsers reuse briefly and the edge reuse longer; a new deploy starts
-    # with a fresh origin/cache key while stale-while-revalidate avoids stalls.
-    resp.headers['Cache-Control'] = 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400'
-    if robots_meta:
-        resp.headers['X-Robots-Tag'] = robots_meta
-    return resp
-
-
-def _owner_profile_html_cache_get(pac):
-    with _owner_profile_html_cache_lock:
-        entry = _owner_profile_html_cache.get(pac)
-        if entry is not None:
-            _owner_profile_html_cache.move_to_end(pac)
-        return entry
-
-
-def _owner_profile_html_cache_put(pac, html_text, robots_meta):
-    with _owner_profile_html_cache_lock:
-        _owner_profile_html_cache[pac] = (html_text, robots_meta)
-        _owner_profile_html_cache.move_to_end(pac)
-        while len(_owner_profile_html_cache) > _OWNER_PROFILE_HTML_CACHE_MAX:
-            _owner_profile_html_cache.popitem(last=False)
-
-
 def cms_owner_profile_page(owner_id, requested_slug=None):
     """CMS ownership profile by 10-digit PAC; optional slug is descriptive only."""
     from ownership.owner_profile import (
@@ -6816,11 +6820,6 @@ def cms_owner_profile_page(owner_id, requested_slug=None):
         if fast_canon and req_path != fast_canon.rstrip('/'):
             target = f'{fast_canon}?{qs}' if qs else fast_canon
             return redirect(target, code=301)
-
-    cached_page = _owner_profile_html_cache_get(pac)
-    if cached_page is not None:
-        cached_html, cached_robots = cached_page
-        return _owner_profile_response(cached_html, cached_robots)
 
     try:
         profile = load_owner_profile_resolved(pac)
@@ -6866,8 +6865,12 @@ def cms_owner_profile_page(owner_id, requested_slug=None):
             'CMS ownership profile is temporarily unavailable. Please retry shortly.',
             503,
         )
-    _owner_profile_html_cache_put(pac, html, robots_meta)
-    return _owner_profile_response(html, robots_meta)
+    resp = make_response(html)
+    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
+    if robots_meta:
+        resp.headers['X-Robots-Tag'] = robots_meta
+    return resp
 
 
 @fec_owner_bp.route('', defaults={'path': ''})
@@ -6899,64 +6902,59 @@ def fec_owner_proxy(path):
 app.register_blueprint(fec_owner_bp)
 
 
-def _owners_hub_index_json_ld(*, page_title: str, meta_description: str) -> str:
+def _owners_hub_index_json_ld() -> str:
     base = _public_site_origin()
     page_url = f'{base}/owners'
     return _explainer_page_json_ld_scripts(
-        page_title=page_title,
+        page_title='Nursing Home Ownership Indexes | PBJ320',
         page_url=page_url,
-        description=meta_description,
+        description=(
+            'Browse reported CMS nursing home ownership entities in New York, Connecticut, and Florida '
+            'with PBJ320 staffing context.'
+        ),
         breadcrumb_name='Ownership',
     )
 
 
 def _owners_cms_index_html():
-    """Public ownership hub — nationwide CMS search + national portfolios/CHOW panels."""
-    from ownership.state_owner_index import resolve_state_owner_index_slug
-    from ownership.state_owner_index_html import render_owners_hub_index_body
-    from ownership.us_states import US_STATE_CODES
-
-    raw_st = (request.args.get('st') or request.args.get('state') or '').strip()
-    if raw_st:
-        state_code = None
-        if len(raw_st) == 2:
-            candidate = raw_st.upper()
-            state_code = candidate if candidate in US_STATE_CODES else None
-        else:
-            resolved = resolve_state_owner_index_slug(raw_st.lower())
-            state_code = resolved if resolved in US_STATE_CODES else None
-        if state_code:
-            return redirect(f'/owners/{state_code.lower()}', code=302)
-
-    body, layout_meta = render_owners_hub_index_body(
-        None,
-        get_canonical_slug=get_canonical_slug,
-    )
+    """Public ownership index — links to NY/CT/FL state browse pages (not a national database)."""
     layout = get_pbj_site_layout(
-        layout_meta['page_title'],
-        layout_meta['meta_description'],
-        _public_site_origin() + layout_meta['canonical_path'],
+        'Nursing Home Ownership Indexes | PBJ320',
+        'Browse reported CMS nursing home ownership entities in New York, Connecticut, and Florida with PBJ320 '
+        'staffing-focused owner profiles, facility counts, and Payroll-Based Journal context.',
+        _public_site_origin() + '/owners',
         extra_head=(
-            _owners_hub_index_json_ld(
-                page_title=layout_meta['page_title'],
-                meta_description=layout_meta['meta_description'],
-            )
-            + f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
+            _owners_hub_index_json_ld()
             + f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
         ),
         route_context_overrides={'kind': 'ownership'},
     )
-    hub_js_v = _static_asset_version('owners-hub.js')
-    script = f'<script src="/owners-hub.js?v={hub_js_v}" defer></script>'
-    return (
-        layout['head']
-        + layout['nav']
-        + layout['content_open']
-        + body
-        + script
-        + layout['content_close']
-        + '</body></html>'
-    )
+    body = '''
+    <div class="owners-hub owners-hub-index">
+      <h1>Nursing home ownership indexes</h1>
+      <p class="owners-hub-lead">
+        PBJ320 links CMS SNF All Owners filings to Payroll-Based Journal (PBJ) staffing patterns at the
+        owner and facility level. These indexes help you find reported ownership-linked entities — not
+        ultimate beneficial ownership.
+      </p>
+      <p class="owners-state-unlock-note">
+        <strong>Available now:</strong> state ownership indexes for
+        <a href="/owners/ny">New York</a>, <a href="/owners/nj">New Jersey</a>,
+        <a href="/owners/ct">Connecticut</a>, and <a href="/owners/fl">Florida</a>.
+      </p>
+      <ul class="owners-hub-state-cards">
+        <li><a class="owners-hub-state-card" href="/owners/ny"><span class="owners-hub-state-card-title">New York</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
+        <li><a class="owners-hub-state-card" href="/owners/nj"><span class="owners-hub-state-card-title">New Jersey</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
+        <li><a class="owners-hub-state-card" href="/owners/ct"><span class="owners-hub-state-card-title">Connecticut</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
+        <li><a class="owners-hub-state-card" href="/owners/fl"><span class="owners-hub-state-card-title">Florida</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
+      </ul>
+      <p class="owners-hub-aside">
+        Open a profile by 10-digit CMS associate ID (PAC) at <code>/owners/&lt;PAC&gt;</code>, or from a
+        <a href="/">facility search</a> / <a href="/state/new-york">state staffing page</a> when ownership is listed.
+      </p>
+    </div>
+    '''
+    return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'
 
 
 def _owners_state_index_json_ld(state_code: str, *, page_title: str, meta_description: str, canonical_path: str) -> str:
@@ -7072,77 +7070,6 @@ def owners_cms_search_api():
             'suggestions': state_owner_index_search_suggestions(q, state_code, limit=limit),
         })
     return jsonify({'suggestions': search_public_owner_profiles(q, limit=limit, state_code=state_code)})
-
-
-_RELATED_ASSOCIATES_CACHE: OrderedDict[str, tuple[float, str, int]] = OrderedDict()
-_RELATED_ASSOCIATES_CACHE_LOCK = threading.Lock()
-_RELATED_ASSOCIATES_CACHE_TTL = 900
-_RELATED_ASSOCIATES_CACHE_MAX = 256
-
-
-@app.route('/owners/api/related-associates/<pac>')
-def owners_related_associates_api(pac):
-    """Deferred related-associates fragment, cached per PAC after first construction."""
-    from flask import jsonify
-
-    from ownership.owner_profile import (
-        build_related_associates,
-        load_owner_profile_resolved,
-        normalize_associate_id,
-    )
-    from ownership.owner_profile_html import render_related_associates_fragment
-
-    pac_n = normalize_associate_id(pac)
-    if len(pac_n) != 10:
-        return jsonify({'html': '', 'count': 0}), 400
-    now = time.time()
-    with _RELATED_ASSOCIATES_CACHE_LOCK:
-        cached = _RELATED_ASSOCIATES_CACHE.get(pac_n)
-        if cached and now - cached[0] < _RELATED_ASSOCIATES_CACHE_TTL:
-            _RELATED_ASSOCIATES_CACHE.move_to_end(pac_n)
-            resp = jsonify({'html': cached[1], 'count': cached[2]})
-            resp.headers['X-PBJ-Related-Cache'] = 'HIT'
-            return resp
-    profile = load_owner_profile_resolved(pac_n)
-    if not profile:
-        return jsonify({'html': '', 'count': 0}), 404
-    rows = build_related_associates(profile)
-    profile['related_associates'] = rows
-    fragment = render_related_associates_fragment(profile)
-    count = len(rows)
-    with _RELATED_ASSOCIATES_CACHE_LOCK:
-        _RELATED_ASSOCIATES_CACHE[pac_n] = (now, fragment, count)
-        _RELATED_ASSOCIATES_CACHE.move_to_end(pac_n)
-        while len(_RELATED_ASSOCIATES_CACHE) > _RELATED_ASSOCIATES_CACHE_MAX:
-            _RELATED_ASSOCIATES_CACHE.popitem(last=False)
-    resp = jsonify({'html': fragment, 'count': count})
-    resp.headers['X-PBJ-Related-Cache'] = 'MISS'
-    return resp
-
-
-@app.route('/owners/api/owner-facilities/<pac>')
-def owners_owner_facilities_api(pac):
-    """Incremental facility rows/cards for owner-profile Show more (stays on page)."""
-    from flask import jsonify
-
-    from ownership.owner_profile import load_owner_profile_resolved, normalize_associate_id
-    from ownership.owner_profile_html import render_owner_facilities_batch_html
-
-    pac_n = normalize_associate_id(pac)
-    if len(pac_n) != 10:
-        return jsonify({'error': 'invalid pac'}), 400
-    try:
-        offset = int(request.args.get('offset') or 0)
-    except (TypeError, ValueError):
-        offset = 0
-    try:
-        limit = int(request.args.get('limit') or 50)
-    except (TypeError, ValueError):
-        limit = 50
-    profile = load_owner_profile_resolved(pac_n)
-    if not profile:
-        return jsonify({'error': 'not found'}), 404
-    return jsonify(render_owner_facilities_batch_html(profile, offset=offset, limit=limit))
 
 
 @app.route('/owners')
@@ -11302,7 +11229,7 @@ button.pbj-info-chip:focus-visible {{ outline: 2px solid rgba(165, 180, 252, 0.8
 .pbj-entity-hr-insight__badge {{
   display: inline-flex;
   align-items: center;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   gap: 0.28rem;
   margin: 0;
   padding: 0.22rem 0.5rem;
@@ -11313,8 +11240,8 @@ button.pbj-info-chip:focus-visible {{ outline: 2px solid rgba(165, 180, 252, 0.8
   color: #fbbf24;
   background: rgba(251, 191, 36, 0.12);
   border: 1px solid rgba(251, 191, 36, 0.32);
-  white-space: nowrap;
-  max-width: none;
+  white-space: normal;
+  max-width: 9.5rem;
   line-height: 1.2;
   align-self: start;
 }}
@@ -13109,26 +13036,24 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
   }}
   .pbj-entity-hr-insight {{
     display: flex !important;
-    flex-direction: column !important;
+    flex-direction: row !important;
     flex-wrap: nowrap !important;
-    align-items: stretch;
-    gap: 0.45rem;
+    align-items: flex-start;
+    gap: 0.55rem;
     margin-top: 0.45rem;
     width: 100%;
     box-sizing: border-box;
   }}
   .pbj-entity-hr-insight__badge {{
-    display: inline-flex;
-    flex: 0 0 auto;
-    max-width: none;
+    flex: 0 1 auto;
+    max-width: 8.5rem;
     margin: 0;
-    align-self: flex-start;
-    white-space: nowrap;
+    align-self: start;
+    white-space: normal;
   }}
   .pbj-entity-hr-insight__copy {{
     flex: 1 1 auto;
     min-width: 0;
-    width: 100%;
   }}
   .pbj-page-summary-meta .pbj-meta-sep {{
     color: var(--pbj-ov-muted, #9DA9BC); margin: 0 0.05rem;
@@ -13266,7 +13191,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
   }}
   .pbj-provider-premium-bridge__request {{ font-size: 0.76rem; }}
 }}
-.navbar {{ background: rgba(10, 15, 26, 0.92); padding: 0; padding-top: env(safe-area-inset-top, 0); position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid rgba(148, 163, 184, 0.22); }}
+.navbar {{ background: rgba(10, 15, 26, 0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 0; padding-top: env(safe-area-inset-top, 0); position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid rgba(148, 163, 184, 0.22); }}
 .nav-container {{ max-width: 1200px; margin: 0 auto; padding: 0 clamp(12px, 4vw, 20px); display: flex; justify-content: space-between; align-items: center; height: 60px; min-width: 0; box-sizing: border-box; }}
 .nav-brand {{ display: flex; align-items: center; color: #eef2f7; font-size: 1.2rem; font-weight: 700; min-width: 0; line-height: 1.2; }}
 .nav-brand a {{ color: inherit; text-decoration: none; display: flex; align-items: center; transition: opacity 0.2s ease; min-width: 0; }}
@@ -13446,6 +13371,43 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
     margin-bottom: 0.15rem;
     padding-bottom: 0.2rem;
   }}
+  .nav-menu {{
+    display: flex !important;
+    flex-direction: column;
+    position: fixed;
+    top: 60px;
+    left: -100%;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    height: calc(100vh - 60px);
+    background: rgba(10, 15, 26, 0.98);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 0;
+    gap: 0;
+    border-top: 1px solid rgba(71, 85, 105, 0.45);
+    border-bottom: none;
+    z-index: 999;
+    transition: left 0.25s ease;
+    align-items: stretch;
+    justify-content: flex-start;
+  }}
+  .nav-menu.active {{ left: 0; }}
+  .nav-link {{
+    padding: 18px 24px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid rgba(30, 41, 59, 0.55);
+    font-size: 1rem;
+  }}
+  .nav-link--ownership-beta {{ display: flex !important; }}
+  .nav-toggle {{ display: flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; cursor: pointer; }}
+  .nav-toggle span {{ width: 25px; height: 3px; background: #e2e8f0; }}
+  .nav-toggle.active span:nth-child(1) {{ transform: rotate(45deg) translate(5px,5px); }}
+  .nav-toggle.active span:nth-child(2) {{ opacity: 0; }}
+  .nav-toggle.active span:nth-child(3) {{ transform: rotate(-45deg) translate(7px,-6px); }}
   .pbj-infobox {{ float: none; width: 100%; margin: 1rem 0; }}
   .infobox {{ float: none; width: 100%; margin: 1em 0; }}
   .state-key-metrics-row {{ grid-template-columns: repeat(2, 1fr); }}
@@ -13490,9 +13452,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
     letter-spacing: -0.012em;
   }}
   .pbj-page-footer-sources .pbj-sources-sep {{ margin: 0 0.08rem; }}
-  .entity-chain-metrics {{ grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 0.75rem !important; }}
-  .entity-chain-metrics:has(> :nth-child(2):last-child) {{ grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }}
-  .entity-chain-metrics:has(> :nth-child(4)) {{ grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }}
+  .entity-chain-metrics {{ grid-template-columns: repeat(2, 1fr) !important; gap: 0.75rem !important; }}
   .pbj-chart-container {{ padding: 12px; }}
   .pbj-chart-container.pbj-casemix-card {{ padding: 0.48rem 0.52rem 0.42rem; margin: 12px 0; }}
   .pbj-casemix-total-nums {{ font-size: 0.64rem; }}
@@ -14277,8 +14237,26 @@ def render_methodology_block(*, variant: str = 'default'):
         data_range = f'2017-{datetime.now().year}'
     # Display with en-dash (2017–2026); data_range from CSV is hyphenated.
     data_range_display = data_range.replace('-', '\u2013')
+    try:
+        from public_source_vintage import source_vintage_label
+
+        pi_vintage = source_vintage_label('cms.provider_info')
+        macpac_vintage = source_vintage_label('cms.macpac_state_staffing')
+    except Exception:
+        pi_vintage = '—'
+        macpac_vintage = 'March 2022 compendium'
+    pi_clause = (
+        f'Provider Information ({pi_vintage})'
+        if pi_vintage and pi_vintage != '—'
+        else 'Provider Information'
+    )
+    macpac_clause = (
+        macpac_vintage
+        if macpac_vintage and macpac_vintage != '—'
+        else 'MACPAC (2022)'
+    )
     body = f'''<div class="pbj-details-content">
-<p style="margin: 0 0 0.6rem 0; font-size: 0.9rem; color: rgba(226,232,240,0.9);">Staffing from CMS Payroll-Based Journal (PBJ) public files ({data_range_display}), plus Provider Information and chain data where shown. State staffing context via MACPAC (2022). <a href="/data-sources#methodology">Methodology</a> · <a href="/phoebe">PBJ explained</a>.</p>
+<p style="margin: 0 0 0.6rem 0; font-size: 0.9rem; color: rgba(226,232,240,0.9);">Staffing from CMS Payroll-Based Journal (PBJ) public nurse files ({data_range_display}), plus {pi_clause} and chain data where shown. State staffing context via {macpac_clause}. <a href="/data-sources#methodology">Methodology</a> · <a href="/phoebe">PBJ explained</a>.</p>
 <p style="margin: 0 0 0.35rem 0; font-weight: 600; font-size: 0.9rem; color: #818cf8;">Metrics</p>
 <ul style="font-size: 0.875rem; color: rgba(226,232,240,0.88); margin: 0 0 0.75rem 0;">
 <li><strong><a href="/what-is-hprd">Hours Per Resident Day (HPRD)</a>:</strong> Total staff hours ÷ average residents. Example: 350 hours for 100 residents = 3.5 HPRD.</li>
@@ -15238,15 +15216,8 @@ def _provider_snapshot_implied_cy_qtr(path):
     return None
 
 
-@lru_cache(maxsize=32)
 def _collect_cmi_series_from_provider_csv(path, target_cy, state_code=None):
-    """Return cached CMI series for one quarter and optional state.
-
-    A provider render asks for the same national/state slice first while choosing
-    a source and again while calculating its statistics.  Caching the immutable
-    read result prevents those source-selection probes from doubling the large
-    provider CSV scans on the first provider request.
-    """
+    """Return (cmi_series, ratio_series) for one quarter; empty series if file lacks usable CMI columns."""
     try:
         head = pd.read_csv(path, nrows=0)
     except Exception:
@@ -15310,7 +15281,6 @@ def _collect_cmi_series_from_provider_csv(path, target_cy, state_code=None):
     return cmi_s, ratio_s
 
 
-@lru_cache(maxsize=32)
 def _pick_cmi_reference_source_path(target_cy, state_code=None, *, min_cmi_n):
     """First CSV with enough same-quarter CMI rows; falls back past empty Norm snapshots to combined."""
     for path in _cmi_reference_source_paths():
@@ -18062,11 +18032,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     entity_summary_html = ''
     if entity_id and entity_name:
         _t_ent = time.perf_counter()
-        # Keep the provider click path roster-only. Network staffing comparisons
-        # belong on the entity page and can require a national quarterly scan.
-        entity_summary_html = _provider_entity_summary_html(
-            entity_id, entity_name, raw_quarter, attach_metrics=False
-        )
+        entity_summary_html = _provider_entity_summary_html(entity_id, entity_name, raw_quarter)
         _psec('entity', _t_ent)
     orientation_parts = []
     if state_hprd_numeric is not None and reported_total is not None:
@@ -18210,27 +18176,24 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             ownership_public_enabled_for_state,
         )
 
-        _cms_for_provider = None
-        if ownership_beta_enabled_for_state(state_code):
-            from ownership.owner_profile import lookup_cms_ownership_for_provider
-
-            _cms_for_provider = lookup_cms_ownership_for_provider(
-                provider_info_row or pi_header, ccn=prov
-            )
         _provider_ownership_chow_block = render_provider_ownership_chow_block(
             prov,
             provider_info_row=provider_info_row or pi_header,
             state_code=state_code or '',
-            cms=_cms_for_provider,
-            cms_lookup_complete=True,
         )
-        if _cms_for_provider:
-            _provider_owners_subtitle_btn, _provider_owners_subtitle_modal = (
-                render_provider_owners_subtitle_control(
-                    _cms_for_provider.get('control_parties') or [],
-                    ccn=prov,
-                )
+        if ownership_beta_enabled_for_state(state_code):
+            from ownership.owner_profile import lookup_cms_ownership_for_provider
+
+            _cms_for_subtitle = lookup_cms_ownership_for_provider(
+                provider_info_row or pi_header, ccn=prov
             )
+            if _cms_for_subtitle:
+                _provider_owners_subtitle_btn, _provider_owners_subtitle_modal = (
+                    render_provider_owners_subtitle_control(
+                        _cms_for_subtitle.get('control_parties') or [],
+                        ccn=prov,
+                    )
+                )
         _ownership_chow_ai = (
             chow_summary_line_for_ccn(prov)
             if ownership_public_enabled_for_state(state_code)
@@ -20874,11 +20837,29 @@ def _find_latest_sff_pdf_filename() -> str | None:
     return latest_by_mtime.name
 
 
+def _load_current_sff_release_metadata() -> dict:
+    """Load governed current SFF release metadata when available."""
+    path = Path(__file__).resolve().parent / "data_sources" / "cms" / "sff" / "current_release.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
 def get_sff_posting_display() -> str:
-    """Return SFF posting display like 'Feb. 2026' based on latest local PDF."""
+    """Return display vintage for the governed current SFF posting."""
+    release = _load_current_sff_release_metadata()
+    release_id = str(release.get("source_release") or release.get("posting_period") or "").strip()
+    match = re.fullmatch(r"(\d{4})-(\d{2})", release_id)
+    if match:
+        year = int(match.group(1))
+        month_num = int(match.group(2))
+        return f"{_SFF_NUM_TO_LABEL.get(month_num, 'Unknown')} {year}"
+
     latest_name = _find_latest_sff_pdf_filename()
     if not latest_name:
-        return 'Unknown'
+        return "Unknown"
     parts = _extract_sff_pdf_parts(latest_name)
     if not parts:
         return latest_name
@@ -20887,10 +20868,16 @@ def get_sff_posting_display() -> str:
 
 
 def get_sff_source_url() -> str:
-    """Return link to latest hosted PBJ320 SFF PDF when available; fallback to CMS SFF program page."""
+    """Return authoritative CMS URL for the governed current SFF posting."""
+    release = _load_current_sff_release_metadata()
+    source_url = str(release.get("source_url") or "").strip()
+    if source_url:
+        return source_url
+
     latest_name = _find_latest_sff_pdf_filename()
     if latest_name:
         return f"/downloads/sff/{latest_name}"
+
     from site_public_config import CMS_SFF_PROGRAM_URL
     return CMS_SFF_PROGRAM_URL
 
@@ -25320,6 +25307,7 @@ def pbjpedia_index():
 _PROVIDER_PAGE_CACHE = {}
 _PROVIDER_PAGE_CACHE_MAX = 400
 _PROVIDER_PAGE_HTML_BUDGET_MB = float(os.environ.get('PBJ_PROVIDER_PAGE_HTML_BUDGET_MB', '140' if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) else '50'))
+_PROVIDER_COLD_RENDER_SEM = None
 
 
 def _provider_page_html_budget_bytes() -> int:
@@ -25361,6 +25349,26 @@ def _enforce_provider_page_html_budget() -> dict:
             flush=True,
         )
     return _provider_page_html_cache_byte_stats()
+
+
+def _provider_cold_render_semaphore():
+    global _PROVIDER_COLD_RENDER_SEM
+    if _PROVIDER_COLD_RENDER_SEM is None:
+        try:
+            slots = max(1, int(os.environ.get('PBJ_PROVIDER_COLD_SLOTS', '1')))
+        except (TypeError, ValueError):
+            slots = 2
+        _PROVIDER_COLD_RENDER_SEM = threading.Semaphore(slots)
+    return _PROVIDER_COLD_RENDER_SEM
+
+
+def _provider_cold_render_wait_seconds() -> float:
+    """Seconds to wait for HTML render slot (data lookups run outside this lock)."""
+    default = '45' if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) else '25'
+    try:
+        return max(0.0, float(os.environ.get('PBJ_PROVIDER_COLD_WAIT', default)))
+    except (TypeError, ValueError):
+        return 45.0 if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) else 25.0
 
 
 def _provider_page_cached_response(prov: str, now: float):
@@ -25410,6 +25418,34 @@ def _provider_page_cache_enabled():
 
 PBJ_CASEMIX_UI_REV = '14-split-7'
 PBJ_STAFFING_CHARTS_REV = '2'
+
+
+def _provider_busy_minimal_html(retry_after: str = '30') -> str:
+    """Minimal HTML when cold render queue is saturated (no full CSV work)."""
+    ra = html.escape(str(retry_after), quote=True)
+    return f'''<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PBJ320 — loading</title>
+<meta http-equiv="refresh" content="{ra};url=">
+<style>body{{font-family:system-ui,sans-serif;background:#0f0f12;color:#e4e4e7;margin:2rem;line-height:1.5}}</style>
+</head><body>
+<h1>Provider page is loading</h1>
+<p>Another facility page is being prepared. Please retry in a few seconds.</p>
+<p><a href="/">Return to PBJ320 home</a></p>
+</body></html>'''
+
+
+def _provider_busy_response(retry_after: str = '30'):
+    return make_response(
+        _provider_busy_minimal_html(retry_after),
+        503,
+        {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Retry-After': str(retry_after),
+            'X-PBJ-Provider-Cache': 'MISS',
+            'Cache-Control': 'no-store',
+        },
+    )
 
 
 def _provider_page_html_headers(*, cache_hit=False):
@@ -25470,6 +25506,8 @@ def _provider_page_cache_hit_ok(prov: str, html: str, row: dict | None) -> bool:
         return False
     if 'data-pbj-casemix-ui="14-split-7"' not in body and 'pbj-casemix-card' in body:
         return False
+    if 'pbj-cmi-modal-related' in body:
+        return False
     if 'Compliance note:' in body and 'data-owner-info' not in body:
         return False
     if 'PBJ daily staffing flags' in body:
@@ -25479,6 +25517,10 @@ def _provider_page_cache_hit_ok(prov: str, html: str, row: dict | None) -> bool:
     if 'pbj-casemix-card' in body and 'function caseMixHprdPairHtml' not in body:
         return False
     if 'pbj-casemix-card' in body and 'Case-Mix)</span>' not in body:
+        return False
+    if 'pbj-casemix-cmi-strip--intoprow' in body:
+        return False
+    if 'pbj-takeaway-compliance-note' in body:
         return False
     if "aside.className = 'pbj-casemix-breakdown-aside'" in body:
         return False
@@ -25522,6 +25564,9 @@ def _provider_page_impl(ccn):
     prov = normalize_ccn(ccn) or ''
     ua_class = classify_user_agent(request.headers.get('User-Agent', ''))
     timer = ProviderRequestTimer(prov or str(ccn or ''), ua_class=ua_class, pid=os.getpid())
+    sem = None
+    acquired = False
+
     try:
         if not HAS_PANDAS:
             timer.status = 503
@@ -25634,6 +25679,30 @@ def _provider_page_impl(ccn):
         _log_mem('route_provider_provider_info')
         provider_section_record('provider_info', t_sec)
 
+        sem = _provider_cold_render_semaphore()
+        t_queue = time.perf_counter()
+        wait_s = _provider_cold_render_wait_seconds()
+        acquired = sem.acquire(timeout=wait_s) if wait_s > 0 else sem.acquire(blocking=False)
+        timer.queue_wait_ms = round((time.perf_counter() - t_queue) * 1000, 1)
+        if not acquired:
+            hit = _provider_page_cached_response(prov, now)
+            if hit is not None:
+                timer.cache = 'HIT'
+                timer.stale_serve = True
+                timer.outcome = 'cache_hit_after_queue_timeout'
+                timer.status = 200
+                return hit
+            timer.outcome = 'queue_rejected'
+            timer.status = 503
+            return _provider_busy_response('30')
+
+        hit = _provider_page_cached_response(prov, now)
+        if hit is not None:
+            timer.cache = 'HIT'
+            timer.outcome = 'cache_hit_race'
+            timer.status = 200
+            return hit
+
         timer.outcome = 'cold_render_started'
         if provider_perf_log_enabled():
             print(f'[PBJ_PROVIDER] cold_render_started ccn={prov} pid={os.getpid()}', flush=True)
@@ -25691,6 +25760,8 @@ def _provider_page_impl(ccn):
                 timer.outcome = 'error'
         raise
     finally:
+        if acquired and sem is not None:
+            sem.release()
         timer.emit_log()
 
 def _state_page_impl(state_slug):

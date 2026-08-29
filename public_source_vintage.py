@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 import os
 import re
@@ -143,6 +144,10 @@ def build_public_source_vintages(app_root: Path | None = None) -> list[dict[str,
             "processing_modified_date": active_date if active_date != "UNKNOWN" else "—",
             "cadence": "monthly_pair",
             "source_url": "https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners",
+            "source_urls": [
+                {"label": "Owners", "url": "https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners"},
+                {"label": "Enrollments", "url": "https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-enrollments"},
+            ],
             "publication_class": "paired_release",
             "used_in": ["owner profiles", "CCN bridge", "entity pages"],
             "status": "CURRENT" if active_date != "UNKNOWN" else "UNKNOWN",
@@ -232,9 +237,27 @@ def render_data_sources_vintage_table_html(rows: list[dict[str, Any]]) -> str:
     ]
     for row in rows:
         used = ", ".join(row.get("used_in") or [])
+        dataset_label = html.escape(str(row.get("display_name") or "?"))
+        source_rows = row.get("source_urls") or []
+
+        if source_rows:
+            links = []
+            for source in source_rows:
+                label = html.escape(str(source.get("label") or "Source"))
+                url = html.escape(str(source.get("url") or ""), quote=True)
+                if url:
+                    links.append(
+                        f'<a href="{url}" target="_blank" rel="noopener">{label}</a>'
+                    )
+            if links:
+                dataset_label += (
+                    '<div style="margin-top:.18rem;font-size:.8rem">'
+                    + " ? ".join(links)
+                    + "</div>"
+                )
         out.append(
             "<tr>"
-            f"<td>{row.get('display_name') or '—'}</td>"
+            f"<td>{dataset_label}</td>"
             f"<td>{row.get('source_vintage') or '—'}</td>"
             f"<td>{row.get('official_publication_date') or '—'}</td>"
             f"<td>{used or '—'}</td>"

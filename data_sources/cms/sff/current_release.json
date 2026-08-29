@@ -1,7 +1,7 @@
 {
-  "posting_period": "2026-08",
-  "promoted_at": "2026-08-27T19:47:32.521177+00:00",
-  "source_filename": "sff-posting-with-candidate-list-august-2026.pdf",
-  "source_release": "2026-08",
-  "source_url": "https://www.cms.gov/files/document/sff-posting-candidate-list-august-2026.pdf"
+  "source_release": "2026-07",
+  "source_filename": "sff-posting-with-candidate-list-july-2026.pdf",
+  "published_pdf": "sff-posting-with-candidate-list-july-2026.pdf",
+  "derived_json": "data/derived/sff/sff_facilities.json",
+  "public_json": "pbj-wrapped/public/sff-facilities.json"
 }

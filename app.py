@@ -1792,6 +1792,11 @@ def _serve_public_html(filename: str, *, inject_csrf: bool = False):
         html_content = html_content.replace('__PBJ_DATA_RANGE_NDASH__', _dr.replace('-', '&ndash;'))
         html_content = html_content.replace('__PBJ_DATA_RANGE__', _dr)
     html_content = inject_public_site_verification_meta(html_content)
+    _ptv = _static_asset_version('public-trust.css')
+    html_content = html_content.replace(
+        'href="/public-trust.css"',
+        f'href="/public-trust.css?v={_ptv}"',
+    )
     if filename == 'index.html':
         if 'pbj-route-context' not in html_content:
             html_content = html_content.replace(

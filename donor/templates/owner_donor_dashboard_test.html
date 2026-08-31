@@ -1108,11 +1108,14 @@
             <div class="search-box">
                 <div class="search-input-wrapper">
                     <input
-                        type="text"
+                        type="search"
                         id="searchInput"
                         class="search-input"
                         placeholder="Search by owner name, entity ID, or provider name/CCN..."
                         autocomplete="off"
+                        autocapitalize="none"
+                        autocorrect="off"
+                        spellcheck="false"
                     >
                     <div id="autocomplete" class="autocomplete-dropdown"></div>
                 </div>
@@ -2007,11 +2010,15 @@
                         <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
                             <div style="flex: 1; min-width: 200px;">
                                 <input 
-                                    type="text" 
+                                    type="search" 
                                     id="recipientFilter" 
                                     placeholder="Filter by recipient (e.g., MAGA INC, Trump, etc.)..."
                                     style="width: 100%; padding: 0.7rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 6px; color: white; font-size: 0.9rem;"
                                     onkeyup="filterEntityDonations()"
+                                    autocomplete="off"
+                                    autocapitalize="none"
+                                    autocorrect="off"
+                                    spellcheck="false"
                                 >
                             </div>
                             <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">

@@ -378,6 +378,7 @@
 
   /** Same top nav on every static page (Owners → /owners; no FEC nav). */
   function normalizeSiteNavbar() {
+    if (document.getElementById('root')) return;
     var menu = document.querySelector('.navbar .nav-menu') || document.querySelector('.navbar .nav-links');
     if (!menu) return;
     if (navMenuMatchesPreset(menu) && menu.querySelector('a.nav-link[href="/owners"]') && !menu.querySelector('[data-pbj-owners-nav]')) {

@@ -1686,7 +1686,7 @@ def _owner_facilities_table_html(
             '<button type="button" class="owner-table-view-toggle" id="ownerFacilitiesTableViewBtn" '
             'aria-pressed="false" aria-label="Switch to table view">Table view</button>'
             f'<input type="search" id="ownerFacilitiesFilter" class="owner-table-filter-input owner-table-filter-input--desktop" '
-            f'placeholder="Filter…" autocomplete="off" '
+            f'placeholder="Filter…" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" '
             f'aria-label="Filter {n} facilities">'
             '<span class="owner-table-filter-count" id="ownerFacilitiesFilterCount" hidden></span>'
             "</div>"
@@ -1695,7 +1695,7 @@ def _owner_facilities_table_html(
         mobile_toolbar = (
             '<div class="owner-facilities-mobile-toolbar owner-table-only-mobile">'
             f'<input type="search" id="ownerFacilitiesFilterMobile" class="owner-table-filter-input" '
-            f'placeholder="Filter {n} facilities…" autocomplete="off" '
+            f'placeholder="Filter {n} facilities…" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" '
             f'aria-label="Filter facilities">'
             '<span class="owner-table-filter-count" id="ownerFacilitiesFilterCountMobile" hidden></span>'
             "</div>"

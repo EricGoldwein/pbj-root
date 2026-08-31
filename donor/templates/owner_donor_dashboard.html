@@ -658,11 +658,14 @@
             <div class="search-box">
                 <div class="search-input-wrapper">
                     <input
-                        type="text"
+                        type="search"
                         id="searchInput"
                         class="search-input"
                         placeholder="Search by owner, provider (facility), or entity ID (e.g., John Smith, Saber Health, or 217)..."
                         autocomplete="off"
+                        autocapitalize="none"
+                        autocorrect="off"
+                        spellcheck="false"
                     >
                     <div id="autocomplete" class="autocomplete-dropdown"></div>
                 </div>
@@ -1070,12 +1073,15 @@
                         <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
                             <div style="flex: 1; min-width: 200px; position: relative;">
                                 <input 
-                                    type="text" 
+                                    type="search"
                                     id="recipientFilter" 
                                     placeholder="Filter by committee or candidate (e.g., MAGA INC, Trump)..."
                                     style="width: 100%; padding: 0.7rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 6px; color: white; font-size: 0.9rem;"
                                     onkeyup="filterEntityDonations(); recipientFilterAutocomplete(this.value)"
                                     autocomplete="off"
+                                    autocapitalize="none"
+                                    autocorrect="off"
+                                    spellcheck="false"
                                 >
                                 <div id="recipientAutocomplete" class="autocomplete-dropdown" style="display: none;"></div>
                             </div>

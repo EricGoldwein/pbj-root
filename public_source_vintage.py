@@ -137,7 +137,7 @@ def build_public_source_vintages(app_root: Path | None = None) -> list[dict[str,
     rows.append(
         {
             "source_id": "cms.snf_ownership_pair",
-            "display_name": "SNF All Owners + Enrollments",
+            "display_name": "SNF ownership",
             "release_id": active_date,
             "source_vintage": active_date,
             "official_publication_date": active_date if active_date != "UNKNOWN" else "—",
@@ -160,7 +160,7 @@ def build_public_source_vintages(app_root: Path | None = None) -> list[dict[str,
     rows.append(
         {
             "source_id": "cms.sff_pdf_list",
-            "display_name": "SFF / Candidate posting",
+            "display_name": "SFF / Candidate list",
             "release_id": sff_id,
             "source_vintage": _month_year_from_release_id(sff_id),
             "official_publication_date": "—",
@@ -195,7 +195,7 @@ def build_public_source_vintages(app_root: Path | None = None) -> list[dict[str,
     rows.append(
         {
             "source_id": "cms.macpac_state_staffing",
-            "display_name": "MACPAC state staffing standards",
+            "display_name": "State staffing policies",
             "release_id": "2022-03",
             "source_vintage": "March 2022 compendium",
             "official_publication_date": "March 2022",
@@ -212,7 +212,7 @@ def build_public_source_vintages(app_root: Path | None = None) -> list[dict[str,
     rows.append(
         {
             "source_id": "fec.contributions",
-            "display_name": "FEC contributions",
+            "display_name": "Political contributions",
             "release_id": "rolling",
             "source_vintage": "Rolling / current",
             "official_publication_date": "—",
@@ -230,22 +230,12 @@ def build_public_source_vintages(app_root: Path | None = None) -> list[dict[str,
 
 def render_data_sources_vintage_table_html(rows: list[dict[str, Any]]) -> str:
     """Render the current production source contract for /data-sources."""
-    out = [
-        '<div class="source-vintage-table-wrap">',
-        '<table class="meta-table source-vintage-table">',
-        "<thead><tr>"
-        "<th>Dataset</th>"
-        "<th>Current</th>"
-        "<th>Source</th>"
-        "<th>Used for</th>"
-        "</tr></thead>",
-        "<tbody>",
-    ]
+    table_rows = []
+    mobile_cards = []
 
     for row in rows:
         dataset = html.escape(str(row.get("display_name") or "?"))
         vintage = html.escape(str(row.get("source_vintage") or "?"))
-        used = html.escape(", ".join(row.get("used_in") or []) or "?")
 
         source_rows = row.get("source_urls") or []
         source_links = []
@@ -276,16 +266,40 @@ def render_data_sources_vintage_table_html(rows: list[dict[str, Any]]) -> str:
 
         source_html = " &middot; ".join(source_links) or "?"
 
-        out.append(
+        table_rows.append(
             "<tr>"
-            f'<td data-label="Dataset">{dataset}</td>'
-            f'<td data-label="Current">{vintage}</td>'
-            f'<td data-label="Source">{source_html}</td>'
-            f'<td data-label="Used for">{used}</td>'
+            f"<td>{dataset}</td>"
+            f"<td>{vintage}</td>"
+            f"<td>{source_html}</td>"
             "</tr>"
         )
+        mobile_cards.append(
+            '<article class="source-vintage-card">'
+            f'<h3 class="source-vintage-card-title">{dataset}</h3>'
+            '<div class="source-vintage-card-meta">'
+            f'<span class="source-vintage-card-date">{vintage}</span>'
+            '<span class="source-vintage-card-sep" aria-hidden="true">&middot;</span>'
+            f'<span class="source-vintage-card-source">{source_html}</span>'
+            "</div>"
+            "</article>"
+        )
 
-    out.extend(["</tbody></table>", "</div>"])
+    out = [
+        '<div class="source-vintage-table-wrap">',
+        '<table class="meta-table source-vintage-table">',
+        "<thead><tr>"
+        "<th>Source</th>"
+        "<th>Current data</th>"
+        "<th>Official source</th>"
+        "</tr></thead>",
+        "<tbody>",
+        *table_rows,
+        "</tbody></table>",
+        "</div>",
+        '<div class="source-vintage-mobile-list" aria-label="Current data sources">',
+        *mobile_cards,
+        "</div>",
+    ]
     return "\n".join(out)
 
 

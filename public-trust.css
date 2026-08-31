@@ -85,22 +85,21 @@ body {
 
 .source-vintage-table th:nth-child(1),
 .source-vintage-table td:nth-child(1) {
-  width: 23%;
+  width: 35%;
 }
 
 .source-vintage-table th:nth-child(2),
 .source-vintage-table td:nth-child(2) {
-  width: 16%;
+  width: 25%;
 }
 
 .source-vintage-table th:nth-child(3),
 .source-vintage-table td:nth-child(3) {
-  width: 16%;
+  width: 40%;
 }
 
-.source-vintage-table th:nth-child(4),
-.source-vintage-table td:nth-child(4) {
-  width: 45%;
+.source-vintage-mobile-list {
+  display: none;
 }
 
 .content-box {
@@ -132,42 +131,47 @@ body {
 }
 
 @media (max-width: 640px) {
-  .source-vintage-table,
-  .source-vintage-table tbody,
-  .source-vintage-table tr,
-  .source-vintage-table td {
-    display: block;
-    width: 100%;
-  }
-
-  .source-vintage-table thead {
+  .source-vintage-table-wrap {
     display: none;
   }
 
-  .source-vintage-table tr {
-    padding: 0.7rem 0;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+  .source-vintage-mobile-list {
+    display: block;
+    width: 100%;
+    margin: 0.25rem 0 0.8rem;
   }
 
-  .source-vintage-table td {
-    border: 0;
-    padding: 0.18rem 0;
+  .source-vintage-card {
+    width: 100%;
+    padding: 0.58rem 0;
+    margin: 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.20);
   }
 
-  .source-vintage-table td::before {
-    content: attr(data-label) ": ";
-    color: #94a3b8;
-    font-weight: 600;
+  .source-vintage-card:last-child {
+    border-bottom: 0;
   }
 
-  .source-vintage-table td[data-label="Dataset"] {
-    font-weight: 650;
+  .source-vintage-card-title {
+    margin: 0 0 0.1rem;
+    font-size: 0.92rem;
+    line-height: 1.25;
     color: #e2e8f0;
-    padding-bottom: 0.3rem;
   }
 
-  .source-vintage-table td[data-label="Dataset"]::before {
-    content: "";
+  .source-vintage-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.28rem;
+    margin: 0;
+    font-size: 0.80rem;
+    line-height: 1.3;
+    color: #aebdd1;
+  }
+
+  .source-vintage-card-sep {
+    color: #64748b;
   }
 }
 

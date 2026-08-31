@@ -318,7 +318,7 @@
       '<span class="pbj-public-search-input-icon">' +
       searchIconSvg() +
       '</span>' +
-      '<input type="text" id="pbj-public-search-input" class="pbj-public-search-input" autocomplete="off" inputmode="search" enterkeyhint="search" role="combobox" aria-autocomplete="list" aria-controls="pbj-public-search-results" aria-expanded="false" />' +
+      '<input type="search" id="pbj-public-search-input" class="pbj-public-search-input" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="search" enterkeyhint="search" role="combobox" aria-autocomplete="list" aria-controls="pbj-public-search-results" aria-expanded="false" />' +
       '</div>' +
       '<button type="button" class="pbj-public-search-close pbj-public-search-close--desktop" aria-label="Close search">&times;</button>' +
       '</div>' +

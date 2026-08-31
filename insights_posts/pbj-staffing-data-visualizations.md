@@ -1,7 +1,7 @@
 ---
 slug: pbj-staffing-data-visualizations
 title: PBJ Staffing Data Visualizations: National and State Trendline Monitor
-description: Patterns and perspectives from 9 years of US nursing home payroll-based journal (PBJ) staffing data.
+description: Patterns and perspectives from 10 years of US nursing home payroll-based journal (PBJ) staffing data.
 date: 2026-04-29
 previewImage: /insights-native-preview.svg
 readTime: 6 min read

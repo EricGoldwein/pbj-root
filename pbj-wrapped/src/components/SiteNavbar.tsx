@@ -8,7 +8,7 @@ const NAV_LINKS: { href: string; label: string }[] = [
   { href: '/about', label: 'About' },
   { href: '/report', label: 'Report' },
   { href: '/insights', label: 'Insights' },
-  { href: '/phoebe', label: 'PBJ Explained' },
+  { href: '/owners', label: 'Owners' },
   { href: '/premium', label: 'Premium' },
 ];
 
@@ -18,8 +18,8 @@ function navPathActive(path: string, href: string): boolean {
   if (normalized === linkPath) return true;
   if (linkPath === '/insights' && normalized.startsWith('/insights')) return true;
   if (linkPath === '/report' && normalized.startsWith('/report')) return true;
-  if (linkPath === '/phoebe' && normalized.startsWith('/phoebe')) return true;
   if (linkPath === '/about' && normalized.startsWith('/about')) return true;
+  if (linkPath === '/owners' && normalized.startsWith('/owners')) return true;
   if (linkPath === '/premium' && normalized.startsWith('/premium')) return true;
   return false;
 }

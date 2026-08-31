@@ -352,7 +352,8 @@ def _render_scope_search_module(
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
                 </span>
                 <input type="search" id="ownersHubSearchInput" class="owners-hub-search-input owners-state-search-input"
-                  placeholder="{placeholder}" autocomplete="off" spellcheck="false"
+                  placeholder="{placeholder}" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
+                  inputmode="search" enterkeyhint="search"
                   aria-label="{label}"
                   aria-autocomplete="list" aria-controls="ownersHubSearchResults" aria-expanded="false">
                 <ul id="ownersHubSearchResults" class="owners-hub-search-results owners-state-search-results" role="listbox" hidden></ul>

@@ -24484,7 +24484,7 @@ def generate_region_page_html(region_num, region_data, states_in_region, state_d
             
             state_slug = get_canonical_slug(state_code) if state_code else ''
             state_link = (
-                f'<a href="/{state_slug}">{state_name}</a>'
+                f'<a href="/state/{state_slug}">{state_name}</a>'
                 if state_slug
                 else state_name
             )
@@ -24601,7 +24601,7 @@ def generate_macpac_state_standards_table_html():
             except (TypeError, ValueError):
                 pass
         state_cell = (
-            f'<a href="/{slug}">{state_name}</a>'
+            f'<a href="/state/{slug}">{state_name}</a>'
             if state_code and state_code != 'PR'
             else state_name
         )

@@ -44,16 +44,15 @@
   <main class="content content--data-sources">
     <div class="content-box">
       <h1>Data sources &amp; methodology</h1>
-      <p class="meta">Last updated: __PAGE_LAST_UPDATED__</p>
+      <p class="meta">Provider Information vintage: __PAGE_LAST_UPDATED__</p>
+
+      <h2>Current data vintages</h2>
+      __PUBLIC_SOURCE_VINTAGE_TABLE__
 
       <p>PBJ320 is a public nursing home staffing and facility lookup built from federal and other public datasets. This page lists the main sources behind the free site. PBJ320 is operated by <strong>320 Consulting LLC</strong> and is not affiliated with CMS, Medicare, MACPAC, or the FEC. Background: <a href="/phoebe">PBJ explained</a> · <a href="/what-is-hprd">What is HPRD?</a></p>
 
-      <h2>Current source vintages</h2>
-      <p>The table below reflects the source releases currently used by PBJ320.</p>
-      __PUBLIC_SOURCE_VINTAGE_TABLE__
-
       <h2>CMS staffing (Payroll-Based Journal)</h2>
-      <p>Facility-level nurse staffing hours, census, and derived metrics (including HPRD) come from CMS Payroll-Based Journal (PBJ) public files.</p>
+      <p>Facility-level <strong>nurse</strong> staffing hours, census, and derived metrics (including HPRD) come from CMS Payroll-Based Journal (PBJ) public files. Employee-level and non-nurse PBJ extracts are premium-only and are not used on the free public site.</p>
       <ul>
         <li><a href="__CMS_PBJ_STAFFING_SUBMISSION__" rel="noopener noreferrer" target="_blank">CMS PBJ staffing data submission</a> — program page, policy manual, PUF documentation, and specs</li>
         <li><a href="__CMS_PBJ_DAILY_DATASET__" rel="noopener noreferrer" target="_blank">CMS PBJ — daily nurse staffing (data.cms.gov)</a></li>
@@ -61,19 +60,18 @@
       </ul>
 
       <h2>CMS provider &amp; facility context</h2>
-      <p>Ratings, special focus status, abuse icon, ownership type, and case-mix benchmarks come from <a href="__CMS_PROVIDER_INFO_DATASET__" rel="noopener noreferrer" target="_blank">CMS Nursing Home Provider Information dataset</a>.</p>
+      <p>Ratings, abuse icon, ownership type, and case-mix benchmarks on provider pages come from the deployed <strong>Provider Information</strong> Norm snapshot. CMS Provider Information may also carry a <em>Special Focus Status</em> field, but the authoritative current SFF/Candidate list is the standalone CMS SFF posting (see below).</p>
 
       <h2>CMS chain &amp; affiliated entity data</h2>
-      <p>Chain-level summaries on entity pages use CMS nursing home chain performance measures where available.</p>
+      <p>Chain-level summaries on entity pages use CMS nursing home chain performance measures where available. Footer labels show the deployed chain-metrics month.</p>
       <ul>
         <li><a href="https://data.cms.gov/quality-of-care/nursing-home-chain-performance-measures/" rel="noopener noreferrer" target="_blank">CMS nursing home chain performance measures</a></li>
       </ul>
 
-      <h2>CMS ownership (limited profiles)</h2>
-      <p>CMS-reported owner profile pages link facilities to <a href="https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners" rel="noopener noreferrer" target="_blank">CMS owner data</a> (SNF All Owners). Recent ownership changes on state indexes use CMS change-of-ownership (CHOW) filings. Coverage on PBJ320 is limited and may expand over time.</p>
+      <h2 id="ownership">CMS ownership (limited profiles)</h2>
+      <p>Owner profile pages link facilities using the nationwide <strong>SNF All Owners</strong> release paired with matching <strong>SNF Enrollments</strong> via CCN bridge policy (<code>ownership_release_policy.json</code>). State owner indexes may reference CMS change-of-ownership (CHOW) filings when a built CHOW index is present. Coverage on PBJ320 is limited and may expand over time.</p>
       <ul>
         <li><a href="https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners" rel="noopener noreferrer" target="_blank">CMS SNF All Owners</a></li>
-        <li><a href="https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-enrollments" rel="noopener noreferrer" target="_blank">CMS SNF Enrollments</a></li>
       </ul>
 
       <h2>State staffing policy context</h2>
@@ -103,6 +101,15 @@
         <li id="owners-fec"><strong>FEC contributions data:</strong> Name-matched to FEC filings on owner profile pages when available; each amount links to the underlying FEC record.</li>
         <li id="trend-exclusions"><strong>Trend line exclusions:</strong> Longitudinal charts omit quarters with implausible submitted HPRD. <strong>Total:</strong> total or direct-care below 0.25. <strong>RN:</strong> below 0.08, or (when median RN &ge; 0.12) below 0.25 and under 5% of both neighbors. <strong>LPN:</strong> below 0.05, or (when median LPN &ge; 0.20) below 0.12 and under 5% of both neighbors. <strong>Aide:</strong> below 0.15, or (when median aide &ge; 0.75) below 0.45 and under 5% of both neighbors.</li>
         <li id="pbj-daily-staffing"><strong>PBJ daily staffing flags</strong> (facility pages, when data is available): PBJ320 screens reported daily staffing against state-specific <strong>total nursing HPRD</strong> thresholds (all reported nursing roles, including admin/DON, ÷ census; days with census &gt; 0). New York screens use <strong>3.56</strong> total nursing HPRD. Connecticut screens use <strong>3.06</strong> total nursing HPRD, based on <a href="__MACPAC_STATE_STAFFING__" rel="noopener noreferrer" target="_blank">MACPAC</a>&rsquo;s total estimated staffing requirement. State law may separately reference direct-care minimums (e.g. Connecticut&rsquo;s three hours of direct care per resident per day). PBJ320 also counts days with <strong>zero total RN hours</strong> or <strong>total RN hours under 8</strong> (RN + RN administrator + DON; facility-wide hours that day, not RN-HPRD). PBJ320 reports PBJ-based days below threshold; it does not make legal findings of violation or noncompliance. Premium dashboards may list individual calendar dates; the free site shows quarter-level counts only.</li>
+      </ul>
+
+      <h2 id="maps">Geographic maps (presentation, not a data source)</h2>
+      <p>Interactive state maps on PBJ320 (for example <a href="/report">state and regional rankings</a>) are a <strong>presentation layer</strong> over the same CMS PBJ aggregates documented above. They do not replace rankings tables, and they are not a separate CMS dataset.</p>
+      <ul>
+        <li id="map-stack"><strong>Current stack:</strong> D3 + TopoJSON with U.S. Census-derived state boundaries (us-atlas). State choropleths shade areas by statewide Total Nurse or RN HPRD (and related display modes). CMS Region comparisons use the same regional aggregates as the rankings table.</li>
+        <li id="map-metrics"><strong>What the colors mean:</strong> Statewide (or regional) nurse hours ÷ resident days for the selected quarter—the same ratio logic as the rankings table. Maps can exclude extreme areas from the color scale for readability while still labeling them; always read the table for the exact value.</li>
+        <li id="map-not-mapbox"><strong>Basemap / Mapbox:</strong> PBJ320 does not currently use Mapbox or MapLibre for public rankings maps. Commercial basemap platforms supply roads and place labels, not PBJ hours, star ratings, SFF status, or ownership. Facility coordinates, when used, come from CMS Provider Information (<code>Latitude</code> / <code>Longitude</code>), not from geocoding on each page load.</li>
+        <li id="map-limitations"><strong>Limitations:</strong> A choropleth makes states look comparable on one scale; staffing systems are not identical across states or CMS regions. Prefer the map for pattern-finding and the table (or facility pages) for decisions. Infrastructure notes for any future map work: see the repo doc <code>docs/mapping-stack-infrastructure.md</code> (inspection first; no blind migration). Design-context reading (not a PBJ data source, and not a mandate to use Mapbox): <a href="https://dev.to/mapbox/prompting-for-interactive-web-maps-in-2026-2872" rel="noopener noreferrer" target="_blank">Prompting for interactive web maps in 2026</a>.</li>
       </ul>
 
       <h2>How to use this site</h2>

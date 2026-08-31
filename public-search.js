@@ -150,7 +150,7 @@
       ctx.kind = 'homepage';
       return ctx;
     }
-    var prov = path.match(/^\/provider\/(\d{6})$/);
+    var prov = path.match(/^\/provider\/(\d{6})(?:\/[^/]+)?$/);
     if (prov) {
       ctx.kind = 'provider';
       ctx.ccn = prov[1];

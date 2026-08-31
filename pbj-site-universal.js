@@ -1841,7 +1841,7 @@
       '<span class="pbj-public-search-input-icon">' +
       searchIconSvg() +
       '</span>' +
-      '<input type="text" id="pbj-public-search-input" class="pbj-public-search-input" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" role="combobox" aria-autocomplete="list" aria-controls="pbj-public-search-results" aria-expanded="false" aria-activedescendant="" />' +
+      '<input type="search" id="pbj-public-search-input" class="pbj-public-search-input" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="search" enterkeyhint="search" role="combobox" aria-autocomplete="list" aria-controls="pbj-public-search-results" aria-expanded="false" aria-activedescendant="" />' +
       '<button type="button" id="pbj-public-search-clear-query" class="pbj-public-search-clear-query" aria-label="Clear search query" hidden data-visible="false">&times;</button>' +
       '</div>' +
       '<button type="button" class="pbj-public-search-close pbj-public-search-close--desktop" aria-label="Close search">&times;</button>' +

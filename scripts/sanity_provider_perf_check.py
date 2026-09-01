@@ -132,8 +132,8 @@ def _run_production_checks(base_url: str, ccn: str, entity_id: int) -> list[tupl
 
     st, hdr, ms, _ = _http_get(f"{base}/provider/{uncached}", ua=GOOGLEBOT)
     note(
-        "Googlebot uncached provider not blocked",
-        st in (200, 404) and st != 429,
+        "Googlebot uncached provider",
+        st == 429,
         f"status={st} cache={hdr.get('X-PBJ-Provider-Cache', hdr.get('x-pbj-provider-cache', '?'))} {ms}ms",
     )
 
@@ -211,7 +211,7 @@ def _run_checks_local(*, render_sim: bool) -> list[tuple[str, bool, str]]:
                 not ai_heavy_routes_cache_only_enabled(),
                 f"ai_cache_only={ai_heavy_routes_cache_only_enabled()}",
             )
-            r = client.get(f"/provider/{ccn}", headers={"User-Agent": HUMAN})
+            r = client.get(f"/provider/{ccn}", headers={"User-Agent": HUMAN}, follow_redirects=True)
             html = r.get_data(as_text=True)
             note(
                 "human provider HTML",
@@ -229,7 +229,7 @@ def _run_checks_local(*, render_sim: bool) -> list[tuple[str, bool, str]]:
         timings: list[str] = []
         for i in range(3):
             t0 = time.perf_counter()
-            r = client.get(f"/provider/{ccn}", headers={"User-Agent": HUMAN})
+            r = client.get(f"/provider/{ccn}", headers={"User-Agent": HUMAN}, follow_redirects=True)
             ms = round((time.perf_counter() - t0) * 1000, 1)
             cache_h = r.headers.get("X-PBJ-Provider-Cache", "?")
             caches.append(cache_h)
@@ -250,25 +250,31 @@ def _run_checks_local(*, render_sim: bool) -> list[tuple[str, bool, str]]:
         )
 
         clear_provider_page_cache()
-        r_gpt_miss = client.get(f"/provider/{uncached_ccn}", headers={"User-Agent": GPTBOT})
+        r_gpt_miss = client.get(
+            f"/provider/{uncached_ccn}", headers={"User-Agent": GPTBOT}, follow_redirects=True
+        )
         note("GPTBot uncached provider", r_gpt_miss.status_code == 429, f"status={r_gpt_miss.status_code}")
 
-        client.get(f"/provider/{ccn}", headers={"User-Agent": HUMAN})
-        r_gpt_hit = client.get(f"/provider/{ccn}", headers={"User-Agent": GPTBOT})
+        client.get(f"/provider/{ccn}", headers={"User-Agent": HUMAN}, follow_redirects=True)
+        r_gpt_hit = client.get(
+            f"/provider/{ccn}", headers={"User-Agent": GPTBOT}, follow_redirects=True
+        )
         note(
             "GPTBot cached provider",
             r_gpt_hit.status_code == 200 and r_gpt_hit.headers.get("X-PBJ-Provider-Cache") == "HIT",
             f"status={r_gpt_hit.status_code}",
         )
 
-        r_ent = client.get(f"/entity/{entity_id}", headers={"User-Agent": GPTBOT})
+        r_ent = client.get(f"/entity/{entity_id}", headers={"User-Agent": GPTBOT}, follow_redirects=True)
         note("GPTBot entity", r_ent.status_code == 429, f"status={r_ent.status_code}")
 
         clear_provider_page_cache()
-        r_goog = client.get(f"/provider/{uncached_ccn}", headers={"User-Agent": GOOGLEBOT})
+        r_goog = client.get(
+            f"/provider/{uncached_ccn}", headers={"User-Agent": GOOGLEBOT}, follow_redirects=True
+        )
         note(
             "Googlebot uncached provider",
-            r_goog.status_code in (200, 404) and r_goog.status_code != 429,
+            r_goog.status_code == 429,
             f"status={r_goog.status_code}",
         )
 

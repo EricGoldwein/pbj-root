@@ -25383,6 +25383,18 @@ _PROVIDER_PAGE_CACHE_MAX = 400
 _PROVIDER_PAGE_HTML_BUDGET_MB = float(os.environ.get('PBJ_PROVIDER_PAGE_HTML_BUDGET_MB', '140' if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) else '50'))
 
 
+def _provider_cold_render_slot_count() -> int:
+    """Process-local cold-render capacity (one slot by default on Render)."""
+    default = '1' if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) else '2'
+    try:
+        return max(1, int((os.environ.get('PBJ_PROVIDER_COLD_SLOTS') or default).strip()))
+    except (TypeError, ValueError):
+        return int(default)
+
+
+_PROVIDER_COLD_RENDER_GATE = threading.BoundedSemaphore(_provider_cold_render_slot_count())
+
+
 def _provider_page_html_budget_bytes() -> int:
     return max(1, int(_PROVIDER_PAGE_HTML_BUDGET_MB * 1024 * 1024))
 
@@ -25575,7 +25587,6 @@ def _provider_page_impl(ccn):
     from flask import abort
     from pbj_provider_perf import (
         ProviderRequestTimer,
-        ai_provider_cache_only_enabled,
         classify_user_agent,
         provider_perf_log_enabled,
     )
@@ -25583,6 +25594,7 @@ def _provider_page_impl(ccn):
     prov = normalize_ccn(ccn) or ''
     ua_class = classify_user_agent(request.headers.get('User-Agent', ''))
     timer = ProviderRequestTimer(prov or str(ccn or ''), ua_class=ua_class, pid=os.getpid())
+    cold_gate_acquired = False
     try:
         if not HAS_PANDAS:
             timer.status = 503
@@ -25602,31 +25614,17 @@ def _provider_page_impl(ccn):
             timer.status = 200
             return hit
 
-        if ua_class == 'ai_crawler' and ai_provider_cache_only_enabled():
-            timer.outcome = 'ai_cache_only'
+        if ua_class != 'human':
+            timer.outcome = 'crawler_cache_only'
             timer.status = 429
             return make_response(
-                'Provider page not in cache; AI crawlers do not trigger cold render.',
+                'Provider page not in cache; crawlers do not trigger cold render.',
                 429,
                 {
                     'Content-Type': 'text/plain; charset=utf-8',
                     'Retry-After': '3600',
                     'X-PBJ-Provider-Cache': 'MISS',
-                },
-            )
-
-        from pbj_provider_perf import search_bot_provider_cache_only_enabled
-
-        if ua_class in ('bingbot', 'googlebot') and search_bot_provider_cache_only_enabled():
-            timer.outcome = 'search_bot_cache_only'
-            timer.status = 429
-            return make_response(
-                'Provider page not in cache; search crawlers do not trigger cold render.',
-                429,
-                {
-                    'Content-Type': 'text/plain; charset=utf-8',
-                    'Retry-After': '3600',
-                    'X-PBJ-Provider-Cache': 'MISS',
+                    'Cache-Control': 'no-store',
                 },
             )
 
@@ -25663,6 +25661,31 @@ def _provider_page_impl(ccn):
                     'X-PBJ-Provider-Cache': 'MISS',
                 },
             )
+
+        t_queue = time.perf_counter()
+        cold_gate_acquired = _PROVIDER_COLD_RENDER_GATE.acquire(blocking=False)
+        timer.queue_wait_ms = round((time.perf_counter() - t_queue) * 1000, 1)
+        if not cold_gate_acquired:
+            status = 429 if ua_class != 'human' else 503
+            timer.outcome = 'cold_capacity_rejected'
+            timer.status = status
+            return make_response(
+                'Provider cold-render capacity is busy; retry shortly.',
+                status,
+                {
+                    'Content-Type': 'text/plain; charset=utf-8',
+                    'Retry-After': '3',
+                    'X-PBJ-Provider-Cache': 'MISS',
+                    'Cache-Control': 'no-store',
+                },
+            )
+
+        hit = _provider_page_cached_response(prov, time.time())
+        if hit is not None:
+            timer.cache = 'HIT'
+            timer.outcome = 'cache_hit_after_admission'
+            timer.status = 200
+            return hit
 
         if _facility_quarterly_csv_path() is None:
             timer.status = 503
@@ -25752,6 +25775,8 @@ def _provider_page_impl(ccn):
                 timer.outcome = 'error'
         raise
     finally:
+        if cold_gate_acquired:
+            _PROVIDER_COLD_RENDER_GATE.release()
         timer.emit_log()
 
 def _state_page_impl(state_slug):

@@ -28,7 +28,7 @@ class ProviderColdAdmissionTests(unittest.TestCase):
         app_mod.clear_provider_page_cache()
         self.gate_patch = patch.object(
             app_mod,
-            "_PROVIDER_COLD_RENDER_GATE",
+            "_EXPENSIVE_BUILD_GATE",
             threading.BoundedSemaphore(1),
         )
         self.gate_patch.start()
@@ -93,10 +93,12 @@ class ProviderColdAdmissionTests(unittest.TestCase):
             return app_mod._provider_page_impl(ccn)
 
     def test_render_default_is_one_slot_and_env_can_override(self) -> None:
-        with patch.dict(os.environ, {"RENDER": "1", "PBJ_PROVIDER_COLD_SLOTS": ""}):
-            self.assertEqual(app_mod._provider_cold_render_slot_count(), 1)
+        with patch.dict(os.environ, {"RENDER": "1", "PBJ_GLOBAL_HEAVY_SLOTS": "", "PBJ_PROVIDER_COLD_SLOTS": ""}):
+            self.assertEqual(app_mod._expensive_build_slot_count(), 1)
         with patch.dict(os.environ, {"RENDER": "1", "PBJ_PROVIDER_COLD_SLOTS": "3"}):
-            self.assertEqual(app_mod._provider_cold_render_slot_count(), 3)
+            self.assertEqual(app_mod._expensive_build_slot_count(), 3)
+        with patch.dict(os.environ, {"RENDER": "1", "PBJ_GLOBAL_HEAVY_SLOTS": "4", "PBJ_PROVIDER_COLD_SLOTS": "3"}):
+            self.assertEqual(app_mod._expensive_build_slot_count(), 4)
 
     def test_other_bots_miss_without_starting_provider_work(self) -> None:
         user_agents = (
@@ -180,7 +182,7 @@ class ProviderColdAdmissionTests(unittest.TestCase):
             retry_after = result.headers.get("Retry-After") if hasattr(result, "headers") else None
             return _status(result), retry_after
 
-        with patch.object(app_mod, "_PROVIDER_COLD_RENDER_GATE", threading.BoundedSemaphore(slots)):
+        with patch.object(app_mod, "_EXPENSIVE_BUILD_GATE", threading.BoundedSemaphore(slots)):
             with self.cold_path(load_side_effect=blocking_load):
                 with ThreadPoolExecutor(max_workers=8) as pool:
                     futures = [pool.submit(invoke, i) for i in range(8)]

@@ -1033,6 +1033,7 @@ def _ensure_pandas():
     if (
         path in _HEALTH_PROBE_PATHS
         or path in pandas_free_exact
+        or _is_expensive_html_page_path(path)
         or path.endswith(static_suffixes)
         or (path.endswith('.json') and not path.startswith('/api/'))
     ):
@@ -1055,6 +1056,60 @@ def _ensure_pandas():
             pd = get_pd()
     finally:
         _PANDAS_INIT_LOCK.release()
+
+
+def _is_expensive_html_page_path(path: str) -> bool:
+    """Routes whose pandas initialization belongs inside shared admission."""
+    if path.startswith('/provider/') or path.startswith('/entity/'):
+        return True
+    return re.match(r'^/owners/\d{10}(?:/|$)', path) is not None
+
+
+def _ensure_pandas_after_expensive_admission() -> bool:
+    """Initialize pandas only after a cold expensive-page request owns a slot."""
+    global pd
+    if pd is not None:
+        return True
+    with _PANDAS_INIT_LOCK:
+        if pd is None:
+            pd = get_pd()
+    return pd is not None
+
+
+def _expensive_build_slot_count() -> int:
+    """Process-local shared cold-build capacity; retain provider env compatibility."""
+    default = '1' if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) else '2'
+    raw = (
+        os.environ.get('PBJ_GLOBAL_HEAVY_SLOTS')
+        or os.environ.get('PBJ_PROVIDER_COLD_SLOTS')
+        or default
+    )
+    try:
+        return max(1, int(str(raw).strip()))
+    except (TypeError, ValueError):
+        return int(default)
+
+
+_EXPENSIVE_BUILD_GATE = threading.BoundedSemaphore(_expensive_build_slot_count())
+
+
+def _expensive_build_busy_response(route_name: str, ua_class: str):
+    """Cheap nonblocking overflow response; never initializes route data stacks."""
+    status = 429 if ua_class != 'human' else 503
+    headers = {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Retry-After': '3',
+        'Cache-Control': 'no-store',
+    }
+    if route_name == 'provider':
+        headers['X-PBJ-Provider-Cache'] = 'MISS'
+        body = 'Provider cold-render capacity is busy; retry shortly.'
+    elif route_name == 'entity':
+        headers['X-PBJ-Entity-Cache'] = 'MISS'
+        body = 'Entity cold-render capacity is busy; retry shortly.'
+    else:
+        body = 'Owner profile capacity is busy; retry shortly.'
+    return make_response(body, status, headers)
 
 
 @app.before_request
@@ -1489,6 +1544,16 @@ def _mem_debug_payload() -> dict:
             scope='per (entity_id, quarter)',
         ),
         cache_entry_summary(
+            name='entity_page_html',
+            count=len(_ENTITY_PAGE_HTML_CACHE),
+            max_size=_entity_page_cache_max_entries(),
+            ttl_seconds=_entity_page_cache_ttl_seconds(),
+            stores='rendered HTML strings',
+            scope='per canonical entity ID',
+            total_bytes=_ENTITY_PAGE_HTML_CACHE_BYTES,
+            max_bytes=_entity_page_cache_byte_budget(),
+        ),
+        cache_entry_summary(
             name='staffing_compliance_lookup',
             count=compliance_stats.get('entries'),
             max_size=compliance_stats.get('max_entries'),
@@ -1543,6 +1608,11 @@ def _mem_debug_payload() -> dict:
         'pid': os.getpid(),
         'worker_hint': 'each Gunicorn worker has separate caches',
         'provider_page_html': provider_html_stats,
+        'entity_page_html': {
+            'count': len(_ENTITY_PAGE_HTML_CACHE),
+            'total_bytes': _ENTITY_PAGE_HTML_CACHE_BYTES,
+            'budget_bytes': _entity_page_cache_byte_budget(),
+        },
         'facility_quarterly_lru': {
             **facility_lru_stats,
             'lru_hits': fq_lru.hits if fq_lru else 0,
@@ -6798,25 +6868,50 @@ def _owner_profile_html_cache_put(pac, html_text, robots_meta):
             _owner_profile_html_cache.popitem(last=False)
 
 
+def _normalize_owner_associate_id_light(value) -> str:
+    """Pandas-free equivalent of owner_profile.normalize_associate_id."""
+    if value is None:
+        return ''
+    if isinstance(value, float) and value != value:
+        return ''
+    raw = str(value).strip()
+    if not raw or raw.lower() in ('nan', 'none'):
+        return ''
+    if re.match(r'^[Oo]\d+$', raw):
+        raw = raw[1:]
+    digits = re.sub(r'[^0-9]', '', raw)
+    if len(digits) == 10:
+        return digits
+    if len(digits) == 9:
+        return digits.zfill(10)
+    if len(digits) == 11:
+        return digits[-10:]
+    return ''
+
+
+def _owner_profile_url_from_index(pac: str, display_name: str) -> str:
+    """Build the existing canonical owner URL without importing pandas."""
+    from ownership.display_format import format_org_display
+
+    name = format_org_display(str(display_name or '').strip()) or str(display_name or '').strip()
+    if not name:
+        return f'/owners/{pac}'
+    slug = re.sub(r'[^a-z0-9]+', '-', name.lower())
+    slug = re.sub(r'-{2,}', '-', slug).strip('-') or 'owner'
+    return f'/owners/{pac}/{slug}'
+
+
 def cms_owner_profile_page(owner_id, requested_slug=None):
     """CMS ownership profile by 10-digit PAC; optional slug is descriptive only."""
-    from ownership.owner_profile import (
-        associate_profile_url,
-        load_owner_profile_resolved,
-        normalize_associate_id,
-        owner_profile_canonical_path,
-    )
     from ownership.owner_indexability import (
         classification_for_pac,
         load_owner_indexability_cache,
         owner_robots_meta,
     )
 
-    pac = normalize_associate_id(owner_id)
+    pac = _normalize_owner_associate_id_light(owner_id)
     if len(pac) != 10 or not pac.isdigit():
         return redirect(f'/owner/{owner_id}', code=302)
-    if not HAS_PANDAS:
-        return 'Pandas not available. Owner pages require pandas.', 503
 
     req_path = (request.path or '').rstrip('/') or '/'
     qs = request.query_string.decode() if request.query_string else ''
@@ -6831,7 +6926,7 @@ def cms_owner_profile_page(owner_id, requested_slug=None):
         from flask import abort
         abort(404)
     if cache_name and cache_class in ('index', 'noindex_follow'):
-        fast_canon = associate_profile_url(pac, cache_name)
+        fast_canon = _owner_profile_url_from_index(pac, cache_name)
         if fast_canon and req_path != fast_canon.rstrip('/'):
             target = f'{fast_canon}?{qs}' if qs else fast_canon
             return redirect(target, code=301)
@@ -6841,52 +6936,69 @@ def cms_owner_profile_page(owner_id, requested_slug=None):
         cached_html, cached_robots = cached_page
         return _owner_profile_response(cached_html, cached_robots)
 
+    from pbj_provider_perf import classify_user_agent
+
+    ua_class = classify_user_agent(request.headers.get('User-Agent', ''))
+    acquired = _EXPENSIVE_BUILD_GATE.acquire(blocking=False)
+    if not acquired:
+        return _expensive_build_busy_response('owner', ua_class)
     try:
-        profile = load_owner_profile_resolved(pac)
-    except Exception as _owner_load_err:
-        import traceback
-        print(f'owner profile load failed for {pac}: {_owner_load_err}', flush=True)
-        traceback.print_exc()
-        return (
-            'CMS ownership profile is temporarily unavailable. Please retry shortly.',
-            503,
-        )
-    if not profile:
-        from flask import abort
-        abort(404)
-    from ownership.beta_gate import profile_has_public_state, profile_is_visible
+        cached_page = _owner_profile_html_cache_get(pac)
+        if cached_page is not None:
+            cached_html, cached_robots = cached_page
+            return _owner_profile_response(cached_html, cached_robots)
+        if not _ensure_pandas_after_expensive_admission():
+            return 'Pandas not available. Owner pages require pandas.', 503
+        from ownership.owner_profile import load_owner_profile_resolved, owner_profile_canonical_path
 
-    if not profile_is_visible(profile):
-        from flask import abort
-        abort(404)
+        try:
+            profile = load_owner_profile_resolved(pac)
+        except Exception as _owner_load_err:
+            import traceback
+            print(f'owner profile load failed for {pac}: {_owner_load_err}', flush=True)
+            traceback.print_exc()
+            return (
+                'CMS ownership profile is temporarily unavailable. Please retry shortly.',
+                503,
+            )
+        if not profile:
+            from flask import abort
+            abort(404)
+        from ownership.beta_gate import profile_has_public_state, profile_is_visible
 
-    index_class, _index_reason, _index_meta = classification_for_pac(pac, profile)
-    if index_class == 'suppress':
-        from flask import abort
-        abort(404)
-    robots_meta = owner_robots_meta(index_class)
-    if not profile_has_public_state(profile):
-        robots_meta = 'noindex, follow'
+        if not profile_is_visible(profile):
+            from flask import abort
+            abort(404)
 
-    canon_path = owner_profile_canonical_path(profile)
-    if canon_path and req_path != canon_path.rstrip('/'):
-        target = canon_path
-        if qs:
-            target = f'{target}?{qs}'
-        return redirect(target, code=301)
+        index_class, _index_reason, _index_meta = classification_for_pac(pac, profile)
+        if index_class == 'suppress':
+            from flask import abort
+            abort(404)
+        robots_meta = owner_robots_meta(index_class)
+        if not profile_has_public_state(profile):
+            robots_meta = 'noindex, follow'
 
-    try:
-        html = generate_owner_profile_html(profile, robots_meta=robots_meta)
-    except Exception as _owner_render_err:
-        import traceback
-        print(f'owner profile render failed for {pac}: {_owner_render_err}', flush=True)
-        traceback.print_exc()
-        return (
-            'CMS ownership profile is temporarily unavailable. Please retry shortly.',
-            503,
-        )
-    _owner_profile_html_cache_put(pac, html, robots_meta)
-    return _owner_profile_response(html, robots_meta)
+        canon_path = owner_profile_canonical_path(profile)
+        if canon_path and req_path != canon_path.rstrip('/'):
+            target = canon_path
+            if qs:
+                target = f'{target}?{qs}'
+            return redirect(target, code=301)
+
+        try:
+            html = generate_owner_profile_html(profile, robots_meta=robots_meta)
+        except Exception as _owner_render_err:
+            import traceback
+            print(f'owner profile render failed for {pac}: {_owner_render_err}', flush=True)
+            traceback.print_exc()
+            return (
+                'CMS ownership profile is temporarily unavailable. Please retry shortly.',
+                503,
+            )
+        _owner_profile_html_cache_put(pac, html, robots_meta)
+        return _owner_profile_response(html, robots_meta)
+    finally:
+        _EXPENSIVE_BUILD_GATE.release()
 
 
 @fec_owner_bp.route('', defaults={'path': ''})
@@ -25383,18 +25495,6 @@ _PROVIDER_PAGE_CACHE_MAX = 400
 _PROVIDER_PAGE_HTML_BUDGET_MB = float(os.environ.get('PBJ_PROVIDER_PAGE_HTML_BUDGET_MB', '140' if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) else '50'))
 
 
-def _provider_cold_render_slot_count() -> int:
-    """Process-local cold-render capacity (one slot by default on Render)."""
-    default = '1' if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) else '2'
-    try:
-        return max(1, int((os.environ.get('PBJ_PROVIDER_COLD_SLOTS') or default).strip()))
-    except (TypeError, ValueError):
-        return int(default)
-
-
-_PROVIDER_COLD_RENDER_GATE = threading.BoundedSemaphore(_provider_cold_render_slot_count())
-
-
 def _provider_page_html_budget_bytes() -> int:
     return max(1, int(_PROVIDER_PAGE_HTML_BUDGET_MB * 1024 * 1024))
 
@@ -25446,7 +25546,10 @@ def _provider_page_cached_response(prov: str, now: float):
     cached_at, html = cached
     if now - cached_at >= _provider_page_cache_ttl_seconds():
         return None
-    row_peek = _provider_info_row_for_ccn(prov)
+    # A process cache cannot normally predate pandas initialization, but tests and
+    # warm restore hooks may seed it. Never initialize pandas merely to validate a
+    # cached response before cold-build admission.
+    row_peek = _provider_info_row_for_ccn(prov) if pd is not None else None
     if not _provider_page_cache_hit_ok(prov, html, row_peek):
         return None
     return html, 200, _provider_page_html_headers(cache_hit=True)
@@ -25596,10 +25699,6 @@ def _provider_page_impl(ccn):
     timer = ProviderRequestTimer(prov or str(ccn or ''), ua_class=ua_class, pid=os.getpid())
     cold_gate_acquired = False
     try:
-        if not HAS_PANDAS:
-            timer.status = 503
-            timer.outcome = 'no_pandas'
-            return "Pandas not available. Provider pages require pandas.", 503
         if not prov:
             timer.status = 404
             timer.outcome = 'not_found'
@@ -25663,22 +25762,12 @@ def _provider_page_impl(ccn):
             )
 
         t_queue = time.perf_counter()
-        cold_gate_acquired = _PROVIDER_COLD_RENDER_GATE.acquire(blocking=False)
+        cold_gate_acquired = _EXPENSIVE_BUILD_GATE.acquire(blocking=False)
         timer.queue_wait_ms = round((time.perf_counter() - t_queue) * 1000, 1)
         if not cold_gate_acquired:
-            status = 429 if ua_class != 'human' else 503
             timer.outcome = 'cold_capacity_rejected'
-            timer.status = status
-            return make_response(
-                'Provider cold-render capacity is busy; retry shortly.',
-                status,
-                {
-                    'Content-Type': 'text/plain; charset=utf-8',
-                    'Retry-After': '3',
-                    'X-PBJ-Provider-Cache': 'MISS',
-                    'Cache-Control': 'no-store',
-                },
-            )
+            timer.status = 429 if ua_class != 'human' else 503
+            return _expensive_build_busy_response('provider', ua_class)
 
         hit = _provider_page_cached_response(prov, time.time())
         if hit is not None:
@@ -25686,6 +25775,11 @@ def _provider_page_impl(ccn):
             timer.outcome = 'cache_hit_after_admission'
             timer.status = 200
             return hit
+
+        if not _ensure_pandas_after_expensive_admission():
+            timer.status = 503
+            timer.outcome = 'no_pandas'
+            return "Pandas not available. Provider pages require pandas.", 503
 
         if _facility_quarterly_csv_path() is None:
             timer.status = 503
@@ -25776,7 +25870,7 @@ def _provider_page_impl(ccn):
         raise
     finally:
         if cold_gate_acquired:
-            _PROVIDER_COLD_RENDER_GATE.release()
+            _EXPENSIVE_BUILD_GATE.release()
         timer.emit_log()
 
 def _state_page_impl(state_slug):
@@ -25793,12 +25887,112 @@ def _state_page_impl(state_slug):
     _log_mem("route_state_after")
     return out
 
+
+_ENTITY_PAGE_HTML_CACHE = OrderedDict()
+_ENTITY_PAGE_HTML_CACHE_LOCK = threading.Lock()
+_ENTITY_PAGE_HTML_CACHE_BYTES = 0
+
+
+def _entity_page_cache_ttl_seconds() -> int:
+    try:
+        return max(0, int((os.environ.get('PBJ_ENTITY_PAGE_CACHE_TTL') or '900').strip()))
+    except (TypeError, ValueError):
+        return 900
+
+
+def _entity_page_cache_max_entries() -> int:
+    try:
+        return max(0, int((os.environ.get('PBJ_ENTITY_PAGE_CACHE_MAX') or '64').strip()))
+    except (TypeError, ValueError):
+        return 64
+
+
+def _entity_page_cache_byte_budget() -> int:
+    try:
+        mb = max(0.0, float((os.environ.get('PBJ_ENTITY_PAGE_HTML_BUDGET_MB') or '16').strip()))
+    except (TypeError, ValueError):
+        mb = 16.0
+    return int(mb * 1024 * 1024)
+
+
+def _entity_page_html_headers(*, cache_hit: bool) -> dict[str, str]:
+    ttl = _entity_page_cache_ttl_seconds()
+    browser_max_age = min(300, ttl) if ttl > 0 else 0
+    cache_control = 'no-store' if ttl <= 0 else (
+        f'public, max-age={browser_max_age}, s-maxage={ttl}, '
+        'stale-while-revalidate=86400'
+    )
+    return {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': cache_control,
+        'X-PBJ-Entity-Cache': 'HIT' if cache_hit else 'MISS',
+    }
+
+
+def _entity_page_cached_response(entity_id: int, now: float):
+    global _ENTITY_PAGE_HTML_CACHE_BYTES
+    ttl = _entity_page_cache_ttl_seconds()
+    if ttl <= 0:
+        return None
+    with _ENTITY_PAGE_HTML_CACHE_LOCK:
+        entry = _ENTITY_PAGE_HTML_CACHE.get(int(entity_id))
+        if entry is None:
+            return None
+        inserted_at, html_text, byte_size = entry
+        if now - inserted_at >= ttl:
+            _ENTITY_PAGE_HTML_CACHE.pop(int(entity_id), None)
+            _ENTITY_PAGE_HTML_CACHE_BYTES = max(0, _ENTITY_PAGE_HTML_CACHE_BYTES - byte_size)
+            return None
+        _ENTITY_PAGE_HTML_CACHE.move_to_end(int(entity_id))
+    return html_text, 200, _entity_page_html_headers(cache_hit=True)
+
+
+def _entity_page_cache_put(entity_id: int, html_text: str, inserted_at: float) -> bool:
+    global _ENTITY_PAGE_HTML_CACHE_BYTES
+    max_entries = _entity_page_cache_max_entries()
+    byte_budget = _entity_page_cache_byte_budget()
+    if max_entries <= 0 or byte_budget <= 0 or not isinstance(html_text, str):
+        return False
+    byte_size = utf8_text_bytes(html_text)
+    if byte_size > byte_budget:
+        return False
+    eid = int(entity_id)
+    with _ENTITY_PAGE_HTML_CACHE_LOCK:
+        previous = _ENTITY_PAGE_HTML_CACHE.pop(eid, None)
+        if previous is not None:
+            _ENTITY_PAGE_HTML_CACHE_BYTES = max(0, _ENTITY_PAGE_HTML_CACHE_BYTES - previous[2])
+        _ENTITY_PAGE_HTML_CACHE[eid] = (inserted_at, html_text, byte_size)
+        _ENTITY_PAGE_HTML_CACHE_BYTES += byte_size
+        while (
+            len(_ENTITY_PAGE_HTML_CACHE) > max_entries
+            or _ENTITY_PAGE_HTML_CACHE_BYTES > byte_budget
+        ):
+            _old_eid, (_old_at, _old_html, old_size) = _ENTITY_PAGE_HTML_CACHE.popitem(last=False)
+            _ENTITY_PAGE_HTML_CACHE_BYTES = max(0, _ENTITY_PAGE_HTML_CACHE_BYTES - old_size)
+    return True
+
+
+def clear_entity_page_cache() -> None:
+    global _ENTITY_PAGE_HTML_CACHE_BYTES
+    with _ENTITY_PAGE_HTML_CACHE_LOCK:
+        _ENTITY_PAGE_HTML_CACHE.clear()
+        _ENTITY_PAGE_HTML_CACHE_BYTES = 0
+
+
 def _entity_page_impl(entity_id):
     from flask import abort
     from pbj_provider_perf import ai_heavy_routes_cache_only_enabled, classify_user_agent
 
+    try:
+        canonical_entity_id = int(entity_id)
+    except (TypeError, ValueError):
+        abort(404)
+    ua_class = classify_user_agent(request.headers.get('User-Agent', ''))
+    cached = _entity_page_cached_response(canonical_entity_id, time.time())
+    if cached is not None:
+        return cached
     if (
-        classify_user_agent(request.headers.get('User-Agent', '')) == 'ai_crawler'
+        ua_class == 'ai_crawler'
         and ai_heavy_routes_cache_only_enabled()
     ):
         return make_response(
@@ -25807,23 +26001,40 @@ def _entity_page_impl(entity_id):
             {
                 'Content-Type': 'text/plain; charset=utf-8',
                 'Retry-After': '3600',
+                'Cache-Control': 'no-store',
+                'X-PBJ-Entity-Cache': 'MISS',
             },
         )
-    _log_mem("route_entity_before")
-    if not HAS_PANDAS:
-        return "Pandas not available. Entity pages require pandas.", 503
-    entity_name, facilities = load_entity_facilities(entity_id)
-    # Final canonical guardrail at render edge: entity ID -> canonical display name.
-    canonical_name = get_entity_name_from_search_index(entity_id)
-    if canonical_name:
-        entity_name = canonical_name
-    if not facilities:
-        abort(404)
-    chain_perf = load_chain_performance()
-    chain_row = chain_perf.get(int(entity_id)) if chain_perf else None
-    html = generate_entity_page_html(entity_id, entity_name, facilities, chain_row=chain_row)
-    _log_mem("route_entity_after")
-    return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
+    acquired = _EXPENSIVE_BUILD_GATE.acquire(blocking=False)
+    if not acquired:
+        return _expensive_build_busy_response('entity', ua_class)
+    try:
+        cached = _entity_page_cached_response(canonical_entity_id, time.time())
+        if cached is not None:
+            return cached
+        if not _ensure_pandas_after_expensive_admission():
+            return "Pandas not available. Entity pages require pandas.", 503
+        _log_mem("route_entity_before")
+        entity_name, facilities = load_entity_facilities(canonical_entity_id)
+        # Final canonical guardrail at render edge: entity ID -> canonical display name.
+        canonical_name = get_entity_name_from_search_index(canonical_entity_id)
+        if canonical_name:
+            entity_name = canonical_name
+        if not facilities:
+            abort(404)
+        chain_perf = load_chain_performance()
+        chain_row = chain_perf.get(canonical_entity_id) if chain_perf else None
+        html = generate_entity_page_html(
+            canonical_entity_id,
+            entity_name,
+            facilities,
+            chain_row=chain_row,
+        )
+        _entity_page_cache_put(canonical_entity_id, html, time.time())
+        _log_mem("route_entity_after")
+        return html, 200, _entity_page_html_headers(cache_hit=False)
+    finally:
+        _EXPENSIVE_BUILD_GATE.release()
 
 @app.route('/api/provider/<ccn>/staffing-compliance-summary.json')
 def provider_staffing_compliance_summary_api(ccn):

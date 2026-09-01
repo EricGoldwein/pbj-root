@@ -32,6 +32,23 @@ _TEST_PROVIDER_RE = re.compile(r"^/test/provider/(\d{6})$")
 _TEST_ENTITY_RE = re.compile(r"^/test/entity/(\d+)$")
 
 
+def _provider_name_fallback_under_admission(app_module, prov: str):
+    """Resolve a search-index miss without escaping the shared expensive budget."""
+    from pbj_provider_perf import classify_user_agent
+
+    ua_class = classify_user_agent(request.headers.get("User-Agent", ""))
+    acquired = app_module._EXPENSIVE_BUILD_GATE.acquire(blocking=False)
+    if not acquired:
+        return "", app_module._expensive_build_busy_response("provider", ua_class)
+    try:
+        if not app_module._ensure_pandas_after_expensive_admission():
+            return "", ("Pandas not available. Provider pages require pandas.", 503)
+        pi = app_module._provider_info_row_for_ccn(prov) or {}
+        return str(pi.get("provider_name") or "").strip(), None
+    finally:
+        app_module._EXPENSIVE_BUILD_GATE.release()
+
+
 def _provider_canonical_redirect(ccn: str):
     """301 to canonical slugged provider URL (single hop)."""
     import app as app_module
@@ -41,8 +58,9 @@ def _provider_canonical_redirect(ccn: str):
         abort(404)
     name = get_facility_name_from_search_index(prov)
     if not name:
-        pi = app_module._provider_info_row_for_ccn(prov) or {}
-        name = str(pi.get("provider_name") or "").strip()
+        name, busy = _provider_name_fallback_under_admission(app_module, prov)
+        if busy is not None:
+            return busy
     if not name:
         abort(404)
     target = provider_url(prov, name)
@@ -81,8 +99,9 @@ def _wrap_provider_page_impl(original: Callable[..., Any]) -> Callable[..., Any]
         qs = request.query_string.decode() if request.query_string else ""
         name = get_facility_name_from_search_index(prov)
         if not name:
-            pi = app_module._provider_info_row_for_ccn(prov) or {}
-            name = str(pi.get("provider_name") or "").strip()
+            name, busy = _provider_name_fallback_under_admission(app_module, prov)
+            if busy is not None:
+                return busy
         if name:
             canon_path = provider_url(prov, name)
             if not canonical_paths_match(req_path, canon_path):

@@ -165,6 +165,10 @@ def build_sqlite_from_csv(*, out_path: Path) -> None:
         conn.execute(
             f'CREATE INDEX IF NOT EXISTS idx_enrollment_pac ON "{TABLE}" ("{ENROLLMENT_PAC_COL}")'
         )
+        if "ENROLLMENT ID" in cols:
+            conn.execute(
+                f'CREATE INDEX IF NOT EXISTS idx_enrollment_id ON "{TABLE}" ("ENROLLMENT ID")'
+            )
         if OWNER_PAC_COL in cols:
             conn.execute(
                 f'CREATE INDEX IF NOT EXISTS idx_owner_pac ON "{TABLE}" ("{OWNER_PAC_COL}")'

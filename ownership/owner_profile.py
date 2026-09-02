@@ -1044,27 +1044,179 @@ def lookup_cms_ownership_for_provider(
     return _ownership_lookup_for_facility_ccn(ccn_norm)
 
 
-def _portfolio_enrollment_pacs(profile: dict[str, Any]) -> set[str]:
-    pacs: set[str] = set()
-    for fac in profile.get("facilities") or []:
-        ep = normalize_associate_id(str(fac.get("enrollment_pac") or ""))
-        if ep:
-            pacs.add(ep)
-    ow = profile.get("owner_control_section")
-    if isinstance(ow, dict):
-        for fac in ow.get("facilities") or []:
-            ep = normalize_associate_id(str(fac.get("enrollment_pac") or ""))
-            if ep:
-                pacs.add(ep)
-    return pacs
+def _portfolio_relationship_scope(
+    profile: dict[str, Any],
+) -> tuple[set[str], set[str], dict[str, str]]:
+    """Exact enrollment scope plus broader provider PACs for related-party evidence."""
+    enrollment_ids: set[str] = set()
+    enrollment_pacs: set[str] = set()
+    eid_to_ccn: dict[str, str] = {}
 
+    containers: list[dict[str, Any]] = [profile]
+    for key in ("owner_control_section", "enrollment_section"):
+        section = profile.get(key)
+        if isinstance(section, dict):
+            containers.append(section)
+
+    for container in containers:
+        for raw_eid in container.get("enrollment_ids") or []:
+            eid = _clean(raw_eid)
+            if eid:
+                enrollment_ids.add(eid)
+        for fac in container.get("facilities") or []:
+            if not isinstance(fac, dict):
+                continue
+            eid = _clean(fac.get("enrollment_id"))
+            ccn = _norm_ccn_key(str(fac.get("ccn") or ""))
+            ep = normalize_associate_id(str(fac.get("enrollment_pac") or ""))
+            if eid:
+                enrollment_ids.add(eid)
+            if eid and ccn:
+                eid_to_ccn[eid] = ccn
+            if ep:
+                enrollment_pacs.add(ep)
+
+    profile_pac = normalize_associate_id(profile.get("associate_id"))
+    kind = str(profile.get("profile_kind") or "")
+    if len(profile_pac) == 10 and kind in ("enrollment", "both") and enrollment_ids:
+        enrollment_pacs.add(profile_pac)
+
+    conn = _sqlite_conn()
+    if conn and len(profile_pac) == 10 and kind in ("owner_control", "both", "chow_only"):
+        variants = _sqlite_pac_lookup_values(profile_pac)
+        if variants:
+            placeholders = ",".join("?" * len(variants))
+            bridge = _enrollment_to_ccn_bridge()
+            try:
+                rows = conn.execute(
+                    f'SELECT "ENROLLMENT ID", "{ENROLLMENT_PAC_COL}" '
+                    f'FROM "{_OWNERS_TABLE}" '
+                    f'WHERE "{OWNER_PAC_COL}" IN ({placeholders})',
+                    variants,
+                )
+                for eid_raw, ep_raw in rows:
+                    eid = _clean(eid_raw)
+                    ep = normalize_associate_id(ep_raw)
+                    if eid:
+                        enrollment_ids.add(eid)
+                        ccn = _norm_ccn_key(bridge.get(eid, ""))
+                        if ccn:
+                            eid_to_ccn[eid] = ccn
+                    if ep:
+                        enrollment_pacs.add(ep)
+            except sqlite3.Error:
+                pass
+
+    return enrollment_ids, enrollment_pacs, eid_to_ccn
+
+def _portfolio_enrollment_pacs(profile: dict[str, Any]) -> set[str]:
+    return _portfolio_relationship_scope(profile)[1]
+
+
+def _snf_associates_on_exact_enrollments(
+    enrollment_ids: set[str],
+    *,
+    eid_to_ccn: dict[str, str],
+    exclude_pac: str,
+) -> list[dict[str, Any]]:
+    """Other owner/control PACs sharing an exact Enrollment ID and/or facility CCN."""
+    subject_eids = {_clean(eid) for eid in enrollment_ids if _clean(eid)}
+    if not subject_eids:
+        return []
+    exclude = normalize_associate_id(exclude_pac)
+    conn = _sqlite_conn()
+    if not conn:
+        return []
+
+    bridge = _enrollment_to_ccn_bridge()
+    subject_ccns = {
+        _norm_ccn_key(eid_to_ccn.get(eid) or bridge.get(eid, ""))
+        for eid in subject_eids
+    }
+    subject_ccns.discard("")
+
+    candidate_eids = set(subject_eids)
+    if subject_ccns:
+        try:
+            ccn_to_eids = _ccn_to_enrollment_ids()
+        except Exception:
+            ccn_to_eids = {}
+        for ccn in subject_ccns:
+            candidate_eids.update(
+                _clean(eid) for eid in ccn_to_eids.get(ccn, ()) if _clean(eid)
+            )
+
+    shared_eids: dict[str, set[str]] = {}
+    shared_ccns: dict[str, set[str]] = {}
+    names: dict[str, str] = {}
+    ownership_hit: dict[str, bool] = {}
+    try:
+        placeholders = ",".join("?" * len(candidate_eids))
+        sql = f'SELECT * FROM "{_OWNERS_TABLE}" WHERE "ENROLLMENT ID" IN ({placeholders})'
+        from ownership.role_classification import CATEGORY_OWNERSHIP, classify_owner_record
+
+        for row in conn.execute(sql, sorted(candidate_eids)):
+            d = _sqlite_row_to_dict(row)
+            eid = _clean(d.get("ENROLLMENT ID"))
+            ow_pac = normalize_associate_id(d.get(OWNER_PAC_COL))
+            if not eid or len(ow_pac) != 10 or ow_pac == exclude:
+                continue
+
+            if eid in subject_eids:
+                shared_eids.setdefault(ow_pac, set()).add(eid)
+
+            ccn = _norm_ccn_key(eid_to_ccn.get(eid) or bridge.get(eid, ""))
+            if ccn and ccn in subject_ccns:
+                shared_ccns.setdefault(ow_pac, set()).add(ccn)
+
+            if ow_pac not in shared_eids and ow_pac not in shared_ccns:
+                continue
+            if ow_pac not in names:
+                names[ow_pac] = _owner_display_name(d)
+            if not ownership_hit.get(ow_pac):
+                info = classify_owner_record(d)
+                if info.get("role_category") == CATEGORY_OWNERSHIP or info.get(
+                    "is_ownership_interest"
+                ):
+                    ownership_hit[ow_pac] = True
+    except sqlite3.Error:
+        return []
+
+    related_pacs = set(shared_eids) | set(shared_ccns)
+    out: list[dict[str, Any]] = []
+    for ow_pac in related_pacs:
+        eid_set = shared_eids.get(ow_pac) or set()
+        ccn_set = shared_ccns.get(ow_pac) or set()
+        out.append(
+            {
+                "associate_id": ow_pac,
+                "name": names.get(ow_pac) or ow_pac,
+                "count": max(len(eid_set), len(ccn_set), 1),
+                "shared_enrollments": len(eid_set),
+                "shared_facilities": len(ccn_set),
+                "shared_ownership_interest": bool(ownership_hit.get(ow_pac)),
+                "profile_url": associate_profile_url(ow_pac, names.get(ow_pac) or ""),
+            }
+        )
+    out.sort(
+        key=lambda x: (
+            -int(x.get("shared_facilities") or 0),
+            -int(x.get("shared_enrollments") or 0),
+            str(x.get("name") or ""),
+        )
+    )
+    return out
 
 def _snf_coowners_on_shared_enrollments(
     enrollment_pacs: set[str],
     *,
     exclude_pac: str,
 ) -> list[dict[str, Any]]:
-    """Other owner PACs on the same facility enrollment PACs (SNF All Owners)."""
+    """Other owner/control PACs under the same broader CMS provider/entity PACs.
+
+    The legacy function name is retained for compatibility. A shared provider PAC
+    is not proof of a shared CMS Enrollment ID or nursing-home CCN.
+    """
     if not enrollment_pacs:
         return []
     exclude = normalize_associate_id(exclude_pac)
@@ -1188,15 +1340,12 @@ def _snf_coowners_on_shared_enrollments(
     out.sort(key=lambda x: (-int(x.get("count") or 0), str(x.get("name") or "")))
     return out
 
-
 _SOURCE_CHOW = "chow"
 _SOURCE_SNF = "snf"
 
 
 def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> list[dict[str, Any]]:
-    """
-    Parties that repeatedly appear with this PAC in CMS SNF All Owners and/or CHOW filings.
-    """
+    """CMS-related parties, ranked by the strongest relationship actually supported."""
     from collections import defaultdict
 
     pac = normalize_associate_id(profile.get("associate_id"))
@@ -1208,7 +1357,10 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
             "associate_id": "",
             "name": "",
             "count": 0,
-            "snf_shared": 0,
+            "snf_shared": 0,  # Legacy aggregate retained for downstream compatibility.
+            "shared_facilities": 0,
+            "shared_enrollments": 0,
+            "shared_entities": 0,
             "chow_count": 0,
             "shared_ownership_interest": False,
             "sources": set(),
@@ -1232,6 +1384,9 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
         profile_url: str = "",
         *,
         weight: int = 1,
+        shared_facilities: int = 0,
+        shared_enrollments: int = 0,
+        shared_entities: int = 0,
         shared_ownership_interest: bool = False,
     ) -> None:
         key = _key(associate_id, name)
@@ -1243,7 +1398,16 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
         if source == _SOURCE_CHOW:
             row["chow_count"] += w
         elif source == _SOURCE_SNF:
-            row["snf_shared"] += w
+            row["snf_shared"] = max(int(row.get("snf_shared") or 0), w)
+        row["shared_facilities"] = max(
+            int(row.get("shared_facilities") or 0), int(shared_facilities or 0)
+        )
+        row["shared_enrollments"] = max(
+            int(row.get("shared_enrollments") or 0), int(shared_enrollments or 0)
+        )
+        row["shared_entities"] = max(
+            int(row.get("shared_entities") or 0), int(shared_entities or 0)
+        )
         if shared_ownership_interest:
             row["shared_ownership_interest"] = True
         row["sources"].add(source)
@@ -1276,20 +1440,46 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
             )
 
     kind = str(profile.get("profile_kind") or "")
-    # SNF co-owners on shared enrollments (owner/control portfolios); enrollment pages list control parties.
     if kind in ("owner_control", "both", "chow_only"):
-        for co in _snf_coowners_on_shared_enrollments(
-            _portfolio_enrollment_pacs(profile),
+        enrollment_ids, enrollment_pacs, eid_to_ccn = _portfolio_relationship_scope(profile)
+
+        # Strong evidence first: exact CMS Enrollment ID, with CCN derived from the
+        # release-matched SNF Enrollment bridge when available.
+        for co in _snf_associates_on_exact_enrollments(
+            enrollment_ids,
+            eid_to_ccn=eid_to_ccn,
             exclude_pac=pac,
         ):
+            shared_facilities = int(co.get("shared_facilities") or 0)
+            shared_enrollments = int(co.get("shared_enrollments") or 0)
             _add(
                 str(co.get("associate_id") or ""),
                 str(co.get("name") or ""),
                 _SOURCE_SNF,
                 str(co.get("profile_url") or ""),
-                weight=int(co.get("count") or 1),
+                weight=max(shared_facilities, shared_enrollments, 1),
+                shared_facilities=shared_facilities,
+                shared_enrollments=shared_enrollments,
                 shared_ownership_interest=bool(co.get("shared_ownership_interest")),
             )
+
+        # Broader provider/entity PAC overlap remains useful context, but it is not
+        # presented as proof of a shared enrollment or facility.
+        for co in _snf_coowners_on_shared_enrollments(
+            enrollment_pacs,
+            exclude_pac=pac,
+        ):
+            shared_entities = int(co.get("count") or 0)
+            _add(
+                str(co.get("associate_id") or ""),
+                str(co.get("name") or ""),
+                _SOURCE_SNF,
+                str(co.get("profile_url") or ""),
+                weight=max(shared_entities, 1),
+                shared_entities=shared_entities,
+                shared_ownership_interest=bool(co.get("shared_ownership_interest")),
+            )
+
     if kind in ("owner_control", "chow_only"):
         for party in profile.get("control_parties") or []:
             _add(
@@ -1314,6 +1504,9 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
                 "name": row["name"] or row["associate_id"] or "Unknown",
                 "count": row["count"],
                 "snf_shared": int(row.get("snf_shared") or 0),
+                "shared_facilities": int(row.get("shared_facilities") or 0),
+                "shared_enrollments": int(row.get("shared_enrollments") or 0),
+                "shared_entities": int(row.get("shared_entities") or 0),
                 "chow_count": int(row.get("chow_count") or 0),
                 "shared_ownership_interest": bool(row.get("shared_ownership_interest")),
                 "sources": sources,
@@ -1323,12 +1516,14 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
         )
     out.sort(
         key=lambda x: (
-            -max(int(x.get("snf_shared") or 0), int(x.get("chow_count") or 0)),
+            -int(x.get("shared_facilities") or 0),
+            -int(x.get("shared_enrollments") or 0),
+            -int(x.get("chow_count") or 0),
+            -int(x.get("shared_entities") or 0),
             str(x.get("name") or ""),
         )
     )
     return out[: max(1, limit)]
-
 
 def _attach_portfolio_metrics(profile: dict[str, Any]) -> dict[str, Any]:
     """Enrich facilities with provider info; add portfolio + control-party summaries.

@@ -663,15 +663,18 @@ def _associate_mobile_card(r: dict[str, Any], *, n_facilities: int) -> str:
         )
     else:
         name_html = f'<span class="owner-m-card__title">{html.escape(name)}</span>'
-    shared = html.escape(_associate_shared_facilities_cell(r, n_facilities=n_facilities))
+    shared = _associate_shared_facilities_cell(r, n_facilities=n_facilities)
     link_type = html.escape(_associate_source_label_short(r) or "—")
-    meta = f'<span class="owner-m-card__meta">{shared} shared · {link_type}</span>'
+    if shared != "—":
+        meta_text = f"{shared} shared facilities · {link_type}"
+    else:
+        meta_text = link_type
+    meta = f'<span class="owner-m-card__meta">{html.escape(meta_text)}</span>'
     return (
         '<li class="owner-m-card owner-m-card--associate">'
         f"{name_html}{meta}"
         "</li>"
     )
-
 
 def render_owner_profile_body(
     profile: dict[str, Any], *, include_heavy: bool = False
@@ -1135,42 +1138,31 @@ def _owner_profile_header_html(
 
 
 def _associate_shared_facilities_cell(r: dict[str, Any], *, n_facilities: int) -> str:
-    snf = int(r.get("snf_shared") or 0)
-    chow = int(r.get("chow_count") or 0)
-    if snf:
-        if n_facilities and snf <= n_facilities:
-            return f"{snf} / {n_facilities}"
-        return str(snf)
-    if chow:
-        return f"{chow} CHOW"
+    shared = int(r.get("shared_facilities") or 0)
+    if shared:
+        if n_facilities and shared <= n_facilities:
+            return f"{shared} / {n_facilities}"
+        return str(shared)
     return "—"
 
 
 def _associate_source_label(r: dict[str, Any]) -> str:
-    """Desktop relationship column — concise, single-line when possible."""
+    """Desktop relationship column — strongest supported relationship first."""
     bits: list[str] = []
-    if int(r.get("snf_shared") or 0):
-        if r.get("shared_ownership_interest") or r.get("is_ownership_interest"):
-            bits.append("Shared ownership interest")
-        else:
-            bits.append("Co-enrollee")
+    if int(r.get("shared_facilities") or 0):
+        bits.append("Same facility")
+    elif int(r.get("shared_enrollments") or 0):
+        bits.append("Same enrollment")
+    elif int(r.get("shared_entities") or 0) or int(r.get("snf_shared") or 0):
+        bits.append("Same CMS entity")
     if int(r.get("chow_count") or 0):
-        bits.append("CHOW party")
+        bits.append("CMS ownership change")
     return " · ".join(bits) if bits else "Related"
 
 
 def _associate_source_label_short(r: dict[str, Any]) -> str:
-    """Mobile meta line — shorter relationship wording."""
-    bits: list[str] = []
-    if int(r.get("snf_shared") or 0):
-        if r.get("shared_ownership_interest") or r.get("is_ownership_interest"):
-            bits.append("Ownership interest")
-        else:
-            bits.append("Co-enrollee")
-    if int(r.get("chow_count") or 0):
-        bits.append("CHOW party")
-    return " · ".join(bits) if bits else "Related"
-
+    """Mobile relationship wording mirrors the desktop semantics."""
+    return _associate_source_label(r)
 
 def _associates_summary_html(*, count_html: str) -> str:
     """One far-right disclosure chevron; hide native/details ::before via CSS."""

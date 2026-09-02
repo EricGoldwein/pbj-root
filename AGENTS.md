@@ -61,3 +61,13 @@ local filesystem, treat it as optional detail; these rules remain authoritative 
 7. **Ingestion boundaries** — Normalize source IDs, units, dates, and null semantics
    at import/ingest edges — not ad hoc in every consumer.
 8. **Stop** — When the acceptance criterion is met, stop; park follow-ups.
+
+## Workspace & Data Contract
+
+- Canonical workspace: this checked-out repository/worktree only; do not invent sibling paths from memory.
+- Runtime data: use the paths/config already defined by this repo; do not create parallel databases or alternate data roots for convenience.
+- Private/local data: keep secrets, client/private data, and local-only evidence outside Git unless a checked-in contract explicitly says otherwise.
+- Generated data: treat indexes, build outputs, caches, exports, and derived artifacts according to this repo's existing source/derived/scratch rules; do not promote generated output to source of truth without evidence.
+- Scratch: use the repo's designated scratch/temp location; do not leave one-off probes at repo root.
+- Moves/deletes: never move or delete data, worktrees, databases, or artifacts until provenance and unique WIP are verified.
+- Cross-environment work: open the actual sibling repo/worktree and read its AGENTS.md before changing it.

@@ -1,0 +1,101 @@
+{# HPRD workspace only — top viewport ends here; no lower dashboard modules #}
+<div id="hprdTrendSection" class="guided-scroll-anchor pbj-preview-hprd-terminal">
+    <div class="row">
+        <div class="col-md-12 mb-0">
+            <div class="card border shadow-sm pbj-trend-chart-card pbj-staffing-trend-module h-100">
+                <div class="card-header py-2 px-3 bg-light border-bottom">
+                    <div class="pbj-chart-toolbar hprd-trends-chart-head">
+                        <div class="pbj-chart-toolbar-title-cluster text-center text-md-start">
+                            <div class="btn-group btn-group-sm pbj-segment-toggle pbj-preview-static-segment" role="group" aria-label="Nursing staff metric">
+                                <span class="btn active" aria-current="true">HPRD</span>
+                                <span class="btn"><span class="desktop-text">Hours/day</span><span class="mobile-text">Hrs/d</span></span>
+                            </div>
+                        </div>
+                        <div class="pbj-chart-toolbar-controls justify-content-center justify-content-md-end">
+                            <div class="pbj-chart-tool-cluster">
+                                <div class="btn-group btn-group-sm pbj-chart-grain-toggle pbj-preview-static-segment" role="group" aria-label="HPRD view toggle">
+                                    <span class="btn"><span class="desktop-text">Daily</span><span class="mobile-text">Day</span></span>
+                                    <span class="btn active" aria-current="true"><span class="desktop-text">Monthly</span><span class="mobile-text">Mo</span></span>
+                                    <span class="btn"><span class="desktop-text">Quarterly</span><span class="mobile-text">Qtr</span></span>
+                                    <span class="btn d-none d-md-inline-block"><span class="desktop-text">Annually</span><span class="mobile-text">Yr</span></span>
+                                </div>
+                            </div>
+                            <span class="pbj-chart-tool-divider" aria-hidden="true"></span>
+                            <div class="pbj-chart-tool-cluster pbj-chart-tool-cluster--range-events">
+                                <div class="pbj-trend-events-toolbar" role="group" aria-label="Chart reporting period and timeline events">
+                                    <div class="pbj-chart-scope-header-btns d-none d-md-inline-flex align-items-center flex-shrink-0">
+                                        <span class="btn btn-sm btn-outline-secondary pbj-range-chip-btn pbj-year-scope-btn pbj-trend-range-menu-btn d-inline-flex align-items-center flex-shrink-0 pbj-preview-static-control" role="button" aria-disabled="true">
+                                            <i class="fas fa-calendar fa-xs text-muted pbj-year-scope-icon flex-shrink-0" aria-hidden="true"></i>
+                                            <span class="pbj-year-scope-text">
+                                                <span class="pbj-year-scope-prefix" aria-hidden="true">Period:</span>
+                                                <span class="text-truncate pbj-range-chip-label">{{ static_period_label|default('2025') }}</span>
+                                            </span>
+                                            <i class="fas fa-chevron-down fa-xs text-muted pbj-year-scope-chevron flex-shrink-0" aria-hidden="true"></i>
+                                        </span>
+                                        <span class="btn btn-sm btn-outline-secondary pbj-trend-events-panel-btn d-inline-flex align-items-center pbj-preview-static-control" role="button" aria-disabled="true">
+                                            <span class="pbj-trend-events-btn-label">Show Events</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <span class="pbj-chart-tool-divider" aria-hidden="true"></span>
+                            <div class="pbj-chart-tool-cluster pbj-chart-tool-cluster--reference">
+                                <label class="pbj-chart-refline-field mb-0" title="Reference line">
+                                    <span class="visually-hidden">Reference line</span>
+                                    <div class="input-group input-group-sm pbj-chart-refline-group">
+                                        <span class="input-group-text pbj-chart-refline-label" aria-hidden="true">Ref</span>
+                                        <span class="form-control pbj-chart-refline-value pbj-preview-static-ref" aria-hidden="true">—</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body pt-2 pb-3 pbj-staffing-trend-module-body">
+                    <div class="pbj-hprd-chart-table-row">
+                        <div class="pbj-hprd-chart-table-row__chart">
+                            <div class="pbj-hprd-trend-chart-shell pbj-preview-chart-shell">
+                                <p class="pbj-preview-chart-title mb-0 text-center">Nursing staff HPRD trend</p>
+                                <p class="pbj-preview-chart-subtitle mb-0 text-center">Total nurse and direct care hours per resident day</p>
+                                <div class="pbj-preview-chart-legend" aria-hidden="true">
+                                    <span class="pbj-preview-chart-legend-item"><span class="pbj-preview-chart-legend-swatch pbj-preview-chart-legend-swatch--total"></span>Total nurse HPRD</span>
+                                    <span class="pbj-preview-chart-legend-item"><span class="pbj-preview-chart-legend-swatch pbj-preview-chart-legend-swatch--direct"></span>Direct care HPRD</span>
+                                </div>
+                                <div class="pbj-preview-chart-frame" role="img" aria-label="Staffing trend chart locked">
+                                    <div class="pbj-preview-chart-yaxis" aria-hidden="true"></div>
+                                    <div class="pbj-preview-chart-grid" aria-hidden="true"></div>
+                                    <div class="pbj-preview-chart-xaxis" aria-hidden="true">
+                                        <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span>
+                                        <span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span>
+                                    </div>
+                                    <div class="pbj-preview-chart-lock-card">
+                                        <p class="mb-0">{{ preview_hprd_lock_message|default('Daily staffing trends and monthly HPRD records are available in the full facility dashboard.', true) }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pbj-hprd-chart-table-row__table">
+                            <div class="pbj-rollup-table-panel" id="pbjHprdInlineRollupPanel" data-pbj-rollup-state="locked">
+                                <p class="small text-muted mb-1 fw-semibold pbj-rollup-table-caption">Monthly rollup</p>
+                                <div class="pbj-hprd-inline-table-scroll-wrap dashboard-table-scroll">
+                                    <table class="table table-sm table-striped mb-0 pbj-chart-rollup-data-table pbj-hprd-inline-rollup-table" aria-label="Staffing trend period rollup (headers only)">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th scope="col">Period</th>
+                                                <th scope="col" class="text-end">Census</th>
+                                                <th scope="col" class="text-end">Total</th>
+                                                <th scope="col" class="text-end">Direct</th>
+                                                <th scope="col" class="text-end">RN</th>
+                                            </tr>
+                                        </thead>
+                                    </table>
+                                    <p class="pbj-preview-table-lock-footer small text-muted text-center mb-0 py-2">Detailed monthly ledger metrics require authorized access.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

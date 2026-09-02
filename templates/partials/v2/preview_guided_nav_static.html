@@ -1,0 +1,36 @@
+{# Static Superdynamic v3 guided nav — product tabs only, no working workspace routes #}
+<div class="guided-nav-wrap" id="guidedNavWrap">
+    <nav class="guided-nav w-100" aria-label="Dashboard sections">
+        <div class="guided-nav-inner py-1">
+            <a class="guided-nav-brand guided-nav-brand--active" href="#top" title="PBJ320 dashboard preview">
+                <img src="/pbj_favicon.png" width="20" height="20" alt="" class="guided-nav-brand-favicon" aria-hidden="true">
+                <span class="pbj-brand-mark"><span class="pbj-brand-pbj">PBJ</span><span class="pbj-brand-320">320</span></span>
+            </a>
+            <div class="guided-nav-tabs-scroll guided-nav-tabs-scroll--v3 d-none d-md-flex" role="navigation" aria-label="Section shortcuts">
+                <div class="guided-nav-tabs-inner guided-nav-tabs-inner--v3">
+                    <ul class="nav nav-pills guided-nav-sections guided-nav-sections--analysis guided-nav-sections--core gap-1 flex-nowrap mb-0 py-1">
+                        <li class="nav-item"><a class="nav-link active" href="#pbjV3PaneOverview" aria-current="page"><i class="fas fa-chart-line guided-nav-link-icon" aria-hidden="true"></i><span class="guided-nav-label"><span class="guided-nav-label-long">Staffing Trends</span><span class="guided-nav-label-short">Staffing</span></span></a></li>
+                        <li class="nav-item"><a class="nav-link" href="#top" tabindex="-1" aria-disabled="true"><i class="fas fa-gauge-high guided-nav-link-icon" aria-hidden="true"></i>Benchmarks</a></li>
+                        <li class="nav-item"><a class="nav-link guided-nav-link--records" href="#top" tabindex="-1" aria-disabled="true"><i class="fas fa-table guided-nav-link-icon" aria-hidden="true"></i><span class="guided-nav-label"><span class="guided-nav-label-long">PBJ Records</span><span class="guided-nav-label-short">PBJ Records</span></span></a></li>
+                        <li class="nav-item"><a class="nav-link guided-nav-link--risk" href="#top" tabindex="-1" aria-disabled="true"><i class="fas fa-flag guided-nav-link-icon" aria-hidden="true"></i>Signals</a></li>
+                    </ul>
+                    <span class="guided-nav-util-divider guided-nav-util-divider--core" aria-hidden="true"></span>
+                    <ul class="nav nav-pills guided-nav-utils guided-nav-utils--v3-inline guided-nav-utils--workspace gap-1 flex-nowrap mb-0 py-1">
+                        <li class="nav-item"><a class="nav-link guided-nav-link--workspace" href="{{ cta_href }}" title="Case Builder requires authorized access"><i class="fas fa-clipboard-list guided-nav-link-icon" aria-hidden="true"></i>Case Builder</a></li>
+                        <li class="nav-item"><a class="nav-link guided-nav-link--workspace" href="#pbjV3PaneOverview" title="Methodology"><i class="fas fa-book-open guided-nav-link-icon" aria-hidden="true"></i>Methodology</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="guided-nav-trailing ms-auto d-flex align-items-center gap-1 flex-shrink-0">
+                <span class="btn btn-sm btn-outline-secondary pbj-range-chip-btn pbj-year-scope-btn pbj-nav-period-scope-btn d-inline-flex align-items-center flex-shrink-0 disabled" aria-disabled="true">
+                    <i class="fas fa-calendar fa-xs text-muted pbj-year-scope-icon flex-shrink-0" aria-hidden="true"></i>
+                    <span class="pbj-year-scope-text">
+                        <span class="pbj-year-scope-prefix" aria-hidden="true">Period:</span>
+                        <span class="pbj-range-chip-label text-truncate">{{ static_period_label|default('2025') }}</span>
+                    </span>
+                    <i class="fas fa-chevron-down fa-xs text-muted pbj-year-scope-chevron flex-shrink-0" aria-hidden="true"></i>
+                </span>
+            </div>
+        </div>
+    </nav>
+</div>

@@ -1,0 +1,50 @@
+{# Static filter rail — visual-only controls matching Superdynamic (no disabled form wonk) #}
+<div class="analysis-filters pbj-overview-filters pbj-filter-controls-scope" id="pbjFilterControlsScope">
+    <div class="row mb-1">
+        <div class="col-12">
+            <div class="pbj-grain-segment-wrap">
+                <div class="btn-group pbj-grain-segment pbj-preview-static-segment" role="group" aria-label="Period type">
+                    <span class="btn btn-sm active" aria-current="true">Annual</span>
+                    <span class="btn btn-sm">Quarters</span>
+                    <span class="btn btn-sm d-none d-md-inline-flex">Months</span>
+                    <span class="btn btn-sm">Custom</span>
+                    <span class="btn btn-sm">Day</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mb-1 g-1 pbj-filter-yq-pending" id="quartersYearsSection">
+        <div class="col-12">
+            <div class="d-none d-md-block">
+                <div class="pbj-preview-years-static form-select form-select-sm text-muted" role="listbox" aria-label="Year filter" aria-readonly="true">
+                    <div class="pbj-preview-years-static-item">All Years</div>
+                    {% for y in static_years|default(['2025', '2024', '2023', '2022', '2021']) %}
+                    <div class="pbj-preview-years-static-item{% if y == static_period_label|default('2025') %} is-selected{% endif %}">{{ y }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mb-0 pbj-filter-actions-row g-0">
+        <div class="col-12">
+            <div class="pbj-premium-action-bar pbj-premium-action-bar--dense">
+                <div class="pbj-sidebar-toolbar">
+                    <div class="d-flex pbj-sidebar-actions align-items-center">
+                        <span class="btn btn-sm px-2 pbj-btn-apply-navy pbj-preview-static-control" role="button" aria-disabled="true">Filter</span>
+                        <span class="btn btn-sm pbj-btn-reset-ghost pbj-preview-static-control" role="button" aria-disabled="true" title="Reset filters" aria-label="Reset filters">
+                            <i class="fas fa-rotate-left" aria-hidden="true"></i>
+                        </span>
+                        <span class="btn btn-sm pbj-btn-pbj320-summary pbj-preview-static-control" role="button" aria-disabled="true" title="Open PBJ summary for the active filter range" aria-label="Open PBJ summary">
+                            <img src="/pbj_favicon.png" width="13" height="13" alt="" class="pbj-pbj320-summary-favicon me-1" aria-hidden="true"><span class="pbj-summary-btn-text">PBJ Summary</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="pbj-filter-period-status-row">
+        <div class="pbj-filter-period-status-inline">
+            <p class="pbj-filter-period-scope mb-0" id="pbjSummaryScopePill">Period: {{ static_period_label|default('2025') }}</p>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,27 @@
+{# Preview status bar — compact badge + facility-specific CTA #}
+<div class="pbj-preview-status-bar" role="region" aria-label="Dashboard preview status">
+    <div class="pbj-preview-status-bar-inner">
+        <span class="pbj-preview-status-badge">{{ preview_status_label|default('PREVIEW · FACILITY DATA LOCKED') }}</span>
+        <p class="pbj-preview-status-copy mb-0">
+            This is the PBJ320 dashboard structure for <strong>{{ facility_name_display|default(facility_name) }}</strong>.
+            Staffing analysis, benchmarks, records, and evidence require authorized access.
+        </p>
+        <a href="{{ preview_cta_href|default('https://www.pbj320.com/premium') }}"
+           class="btn btn-sm btn-primary pbj-preview-status-cta"
+           {% if preview_cta_new_tab|default(true) %}target="_blank" rel="noopener noreferrer"{% endif %}>
+            {{ preview_cta_label|default('Request the full facility dashboard') }}
+        </a>
+        {% if preview_show_login_link|default(false) %}
+        <a href="{{ preview_login_href|default('/__pbj_login?next=/') }}" class="btn btn-sm btn-outline-secondary pbj-preview-status-login">
+            Authorized login
+        </a>
+        {% endif %}
+    </div>
+</div>
+<div class="pbj-preview-mobile-cta d-md-none" aria-hidden="false">
+    <a href="{{ preview_cta_href|default('https://www.pbj320.com/premium') }}"
+       class="btn btn-sm btn-primary w-100"
+       {% if preview_cta_new_tab|default(true) %}target="_blank" rel="noopener noreferrer"{% endif %}>
+        {{ preview_cta_label|default('Request full dashboard') }}
+    </a>
+</div>

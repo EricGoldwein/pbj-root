@@ -1,0 +1,19 @@
+{# Lower dashboard module — Superdynamic card header + locked evidence body #}
+<div class="card border shadow-sm pbj-preview-evidence-module h-100">
+    <div class="card-header py-2 px-3 bg-light border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="min-w-0">
+            <h5 class="mb-0 fs-6 fw-semibold">{{ preview_module_title|default('Module') }}</h5>
+            {% if preview_module_subtitle|default('') %}
+            <p class="small text-muted mb-0">{{ preview_module_subtitle }}</p>
+            {% endif %}
+        </div>
+        <div class="pbj-chart-module__table-controls pbj-chart-utility-disclosure-controls flex-shrink-0" role="group" aria-label="{{ preview_module_title|default('Module') }} controls">
+            <span class="btn btn-sm btn-outline-secondary disabled" aria-disabled="true">Expand</span>
+        </div>
+    </div>
+    <div class="card-body pt-2 pb-3 pbj-preview-evidence-module-body">
+        <div class="pbj-preview-evidence-lock-panel">
+            <p class="small text-muted mb-0">{{ preview_module_lock_message|default('This workspace is included in the full PBJ320 facility dashboard.', true) }}</p>
+        </div>
+    </div>
+</div>

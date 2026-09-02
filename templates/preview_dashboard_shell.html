@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ facility.display_name }} | PBJ320 Dashboard Preview</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="Locked preview of the PBJ320 premium staffing dashboard structure for {{ facility.display_name }}.">
+  <link rel="icon" type="image/png" href="/pbj_favicon.png">
+  <link rel="stylesheet" href="/preview-dashboard.css">
+</head>
+<body class="pbj-preview-page">
+  <header class="pbj-preview-nav" role="banner">
+    <div class="pbj-preview-nav-inner">
+      <a href="/">PBJ320</a>
+      <a href="/premium">Premium</a>
+    </div>
+  </header>
+
+  <main class="pbj-preview-main" id="main-content">
+    <div class="pbj-preview-status-bar" role="region" aria-label="Dashboard preview status">
+      <span class="pbj-preview-status-badge">{{ preview_status_label }}</span>
+      <p class="pbj-preview-status-copy">
+        This is the PBJ320 dashboard structure for <strong>{{ facility.display_name }}</strong>.
+        {{ preview_locked_copy }}
+      </p>
+      <a href="{{ cta_href }}" class="pbj-preview-cta"{% if not cta_new_tab %} rel="nofollow"{% else %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ cta_label }}</a>
+    </div>
+
+    <header class="pbj-preview-header">
+      <h1>{{ facility.display_name }}</h1>
+      <p class="pbj-preview-header-meta">
+        {{ facility.city | title }}, {{ facility.state }}
+        {% if facility.entity_name %} · {{ facility.entity_name }}{% endif %}
+        · <a href="{{ facility.provider_page_url }}">Public provider page</a>
+        · <a href="{{ facility.care_compare_url }}" rel="noopener noreferrer">Care Compare</a>
+      </p>
+    </header>
+
+    <h2 class="pbj-preview-section-title">Dashboard modules</h2>
+    <div class="pbj-preview-modules" aria-label="Universal dashboard modules">
+      {% for mod in universal_modules %}
+      <article class="pbj-preview-module">
+        <div class="pbj-preview-module-label">{{ mod.label }}</div>
+        <div class="pbj-preview-module-locked">Locked in preview — available in the full facility dashboard.</div>
+      </article>
+      {% endfor %}
+    </div>
+
+    <h2 class="pbj-preview-section-title">Advanced modules</h2>
+    <p class="pbj-preview-optional-note">{{ optional_modules_disclaimer }}</p>
+    <div class="pbj-preview-modules" aria-label="Optional dashboard modules">
+      {% for mod in optional_modules %}
+      <article class="pbj-preview-module">
+        <div class="pbj-preview-module-label">{{ mod.label }}</div>
+        <div class="pbj-preview-module-locked">Available where supported by full facility data coverage.</div>
+      </article>
+      {% endfor %}
+    </div>
+  </main>
+
+  <div class="pbj-preview-mobile-cta" aria-hidden="false">
+    <a href="{{ cta_href }}" class="pbj-preview-cta"{% if not cta_new_tab %} rel="nofollow"{% else %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ cta_label }}</a>
+  </div>
+</body>
+</html>

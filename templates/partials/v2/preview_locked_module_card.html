@@ -1,0 +1,17 @@
+{# Reusable locked module card for preview mode #}
+<div class="card border shadow-sm pbj-preview-locked-module h-100">
+    <div class="card-header py-2 px-3 bg-light border-bottom">
+        <h5 class="mb-0 fs-6 fw-semibold">{{ preview_module_title|default('Module') }}</h5>
+        {% if preview_module_subtitle|default('') %}
+        <p class="small text-muted mb-0">{{ preview_module_subtitle }}</p>
+        {% endif %}
+    </div>
+    <div class="card-body pt-2 pb-3">
+        <div class="pbj-preview-module-lock-inner">
+            <p class="small text-muted mb-2">{{ preview_module_lock_message|default('This module is included in the full PBJ320 facility dashboard.') }}</p>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="return pbjPreviewOpenAccessCta(event)">
+                {{ preview_cta_label|default('Request the full facility dashboard') }}
+            </button>
+        </div>
+    </div>
+</div>

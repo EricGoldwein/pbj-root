@@ -1,0 +1,12 @@
+{# Advanced optional modules — evidence-row scaffolding, not marketing cards #}
+<div class="pbj-preview-evidence-group" role="group" aria-label="Advanced dashboard modules">
+    <p class="pbj-preview-evidence-group-label mb-0">{{ optional_modules_disclaimer|default('Advanced modules below are available on full dashboards where facility data coverage supports them.') }}</p>
+    <ul class="pbj-preview-evidence-list">
+        {% for mod in optional_modules %}
+        <li>
+            <span class="pbj-preview-evidence-name">{{ mod.label }}</span>
+            <span>Available with full access</span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>

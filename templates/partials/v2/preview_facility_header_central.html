@@ -1,0 +1,34 @@
+{# Facility identity header — literal Superdynamic panel, public context only #}
+<div class="facility-header pbj-preview-facility-header" id="facility-header">
+    <p class="facility-header-product-line mb-0">PBJ320 Nursing Home Staffing Intelligence</p>
+    <div class="facility-title-wrap">
+        <h1 class="facility-title-row mb-0 flex-grow-1">
+            <span id="facilityHeroName">{{ facility.display_name }}</span>
+            <span class="facility-header-id">({{ facility.ccn }})</span>
+        </h1>
+    </div>
+    <div class="facility-locline-wrap mt-1 mb-0">
+        <span class="facility-locline-location">{{ facility.city | title }}, {{ facility.state }}</span>
+        {% set entity_label = facility.entity_name|default('', true)|trim %}
+        {% if entity_label and entity_label|lower not in ['nan', 'none', 'null'] %}
+        <span class="facility-locline-sep" aria-hidden="true"> · </span>
+        <span class="facility-locline-entity">
+            {% if facility.entity_page_url %}
+            <a href="{{ facility.entity_page_url }}" class="facility-header-link pbj-affiliated-entity-link" rel="noopener">{{ entity_label }}</a>
+            {% else %}
+            <span class="facility-header-link pbj-affiliated-entity-link">{{ entity_label }}</span>
+            {% endif %}
+        </span>
+        {% endif %}
+    </div>
+    <div class="facility-hero-meta-notice" role="note">
+        <div class="facility-hero-meta-actions">
+            <span class="btn btn-sm pbj-hero-howto-btn pbj-preview-static-control" role="button" aria-disabled="true"><img src="/pbj_favicon.png" width="13" height="13" alt="" class="pbj-pbj320-summary-favicon me-1" aria-hidden="true">PBJ Guide</span>
+            <span class="btn btn-sm pbj-sources-btn pbj-preview-static-control" role="button" aria-disabled="true"><i class="fas fa-database fa-xs me-1" aria-hidden="true"></i>Sources</span>
+            {% if facility.provider_page_url %}
+            <a href="{{ facility.provider_page_url }}" class="facility-header-link small">Public provider page</a>
+            {% endif %}
+            <span class="hero-foot-deployed">Updated: {{ provider_roster_label|default('2026-06') }}</span>
+        </div>
+    </div>
+</div>

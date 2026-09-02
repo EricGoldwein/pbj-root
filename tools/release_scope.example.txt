@@ -1,0 +1,17 @@
+# Copy to tools/release_scope.txt and edit for the current task.
+# tools/release_scope.txt is gitignored — do not commit task-specific scope.
+
+TASK: mobile navbar visibility after scroll
+
+INTENDED:
+pbj-site-universal.js
+site_public_config.py
+about.html
+
+DO NOT SHIP:
+ownership/*
+app.py ownership handlers
+render.yaml
+scripts/ensure_deploy_csvs.py
+scripts/build_owners_database.py
+unrelated copy/UI WIP

@@ -1,0 +1,10 @@
+{# Superdynamic-style premium context strip — preview label + compact CTA (not marketing masthead) #}
+<div id="pbjPremiumBanner" class="pbj-premium-banner pbj-preview-context-strip" role="region" aria-label="Dashboard preview status">
+    <div class="pbj-premium-banner-inner">
+        <span class="pbj-premium-badge pbj-preview-status-badge">{{ preview_status_label|default('PREVIEW · FACILITY DATA LOCKED') }}</span>
+        <p class="pbj-premium-banner-text mb-0">
+            {{ preview_locked_copy|default('Staffing analysis, benchmarks, records, and evidence require authorized access to the full facility dashboard.', true) }}
+        </p>
+        <a href="{{ cta_href }}" class="btn btn-sm btn-primary pbj-preview-status-cta flex-shrink-0"{% if not cta_new_tab %} rel="nofollow"{% else %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ cta_label }}</a>
+    </div>
+</div>

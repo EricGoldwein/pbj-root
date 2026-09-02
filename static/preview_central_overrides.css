@@ -1,0 +1,110 @@
+/* Central preview — subtractive overrides only (no layout re-creation) */
+
+html.pbj-premium-banner-visible .pbj-premium-banner,
+.pbj-central-preview.pbj-preview-mode .pbj-premium-banner {
+    display: flex !important;
+}
+
+/* Premium preview strip — stacked on narrow viewports (canonical grid + long CTA) */
+@media (max-width: 767.98px) {
+    .pbj-preview-context-strip .pbj-premium-banner-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.4rem;
+        width: 100%;
+    }
+    .pbj-preview-context-strip .pbj-premium-banner-text {
+        width: 100%;
+        max-width: 100%;
+    }
+    .pbj-preview-context-strip .pbj-preview-status-cta {
+        white-space: normal;
+        width: 100%;
+        text-align: center;
+    }
+}
+
+/* Static shell — no interactive filter/chart boot */
+.pbj-central-preview .pbj-filter-controls-scope input,
+.pbj-central-preview .pbj-filter-controls-scope button,
+.pbj-central-preview .pbj-chart-toolbar input,
+.pbj-central-preview .pbj-chart-toolbar button {
+    pointer-events: none;
+}
+
+.pbj-central-preview #hprdTrendChart {
+    visibility: hidden;
+    min-height: 14rem;
+}
+
+.pbj-central-preview-chart-frame {
+    position: relative;
+    min-height: 14rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.35rem;
+    background: #fff;
+}
+
+.pbj-central-preview-chart-lock-card {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 20rem;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid #dbeafe;
+    border-radius: 0.45rem;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+    font-size: 0.78rem;
+    color: #475569;
+    text-align: center;
+}
+
+.pbj-central-preview-table-lock-footer {
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+/* Viewport end */
+.pbj-preview-viewport-page {
+    background: #f8fafc;
+}
+.pbj-preview-viewport-shell {
+    padding-bottom: 0 !important;
+    max-width: 1320px;
+}
+.pbj-preview-viewport-end {
+    position: relative;
+    margin-top: 0.35rem;
+    padding-top: 0.5rem;
+}
+.pbj-preview-viewport-fade {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -2.5rem;
+    height: 2.5rem;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0.92) 72%, #f8fafc 100%);
+}
+.pbj-preview-access-panel {
+    border: 1px solid #dbeafe;
+    border-radius: 0.5rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    padding: 0.75rem 0.9rem;
+    text-align: center;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+.pbj-preview-access-copy {
+    font-size: 0.82rem;
+    color: #475569;
+    line-height: 1.4;
+    margin: 0;
+}
+@media (max-width: 991.98px) {
+    .pbj-preview-viewport-page .container-fluid {
+        padding-bottom: 1rem !important;
+    }
+}

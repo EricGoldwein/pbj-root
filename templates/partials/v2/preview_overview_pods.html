@@ -1,0 +1,120 @@
+{# Overview pods — literal forensic summary card geometry #}
+<div class="pbj-forensic-summary-wrap">
+    <div class="card pbj-summary-statistics-card">
+        <div class="card-body pbj-forensic-card-body">
+            <div id="summary-grid" class="pbj-summary-pods pbj-forensic-summary-grid">
+                <div class="pbj-summary-pod pbj-summary-pod--profile">
+                    <div class="pbj-summary-pod-title-wrap">
+                        <div class="pbj-summary-pod-title-row d-flex align-items-center gap-1 min-w-0">
+                            <div class="pbj-summary-pod-title text-truncate" id="pbjProfilePodTitle">Profile: {{ facility.compact_name|default(facility.display_name) if facility is defined else facility_name_compact|default(facility_name_display|default(facility_name)) }}</div>
+                        </div>
+                    </div>
+                    <div class="pbj-summary-pod-body pbj-profile-pod-body pbj-summary-pod-body--stretch">
+                        <div class="pbj-summary-pod-rows">
+                            <div class="pbj-summary-pod-row pbj-summary-pod-row--profile-meta">
+                                <div class="pbj-profile-meta-stack">
+                                    <div class="pbj-profile-meta-top">
+                                        <span class="pbj-profile-city-state-inline">{% if facility is defined %}{{ facility.city | title }}, {{ facility.state }}{% else %}{{ city | title }}, {{ state }}{% endif %}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pbj-summary-pod-row pbj-summary-pod-row--profile-census">
+                                {% include 'partials/v2/preview_census_context_strip.html' %}
+                            </div>
+                            <div class="pbj-summary-pod-row pbj-summary-pod-row--profile-ratings">
+                                <div class="pbj-bench-split-card pbj-bench-split-card--cms-ratings" aria-label="CMS star ratings">
+                                    <div class="pbj-cms-ratings-stack">
+                                        <div class="pbj-cms-rating-row">
+                                            <span class="pbj-cms-rating-label">CMS Overall</span>
+                                            <span class="pbj-bench-split-value"><span class="pbj-preview-mask-bar pbj-preview-mask-bar--sm" aria-hidden="true"></span></span>
+                                        </div>
+                                        <div class="pbj-cms-rating-row">
+                                            <span class="pbj-cms-rating-label">CMS Staffing</span>
+                                            <span class="pbj-bench-split-value"><span class="pbj-preview-mask-bar pbj-preview-mask-bar--sm" aria-hidden="true"></span></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="pbj-summary-pod pbj-summary-pod--pbj-basics">
+                    <div class="pbj-summary-pod-title-wrap">
+                        <div class="pbj-summary-pod-title" id="pbjSummaryPodBasicsTitle">PBJ Trends ({{ static_period_label|default('2025') }})</div>
+                    </div>
+                    <div class="pbj-summary-pod-body pbj-summary-pod-body--stretch">
+                        <div class="pbj-summary-pod-rows pbj-metric-trend-strips">
+                            <div class="pbj-summary-pod-row">
+                                {% with label='Total nurse HPRD', secondary_label='Direct', strip_aria_label='Total nurse HPRD for selected period' %}
+                                {% include 'partials/v2/preview_metric_context_strip.html' %}
+                                {% endwith %}
+                            </div>
+                            <div class="pbj-summary-pod-row">
+                                {% with label='Total RN HPRD', secondary_label='Direct', strip_aria_label='Total RN HPRD for selected period' %}
+                                {% include 'partials/v2/preview_metric_context_strip.html' %}
+                                {% endwith %}
+                            </div>
+                            <div class="pbj-summary-pod-row pbj-summary-pod-row--pbj-third">
+                                {% with label='Contract', strip_aria_label='Contract share for selected period' %}
+                                {% include 'partials/v2/preview_metric_context_strip.html' %}
+                                {% endwith %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="pbj-summary-pod pbj-summary-pod--acuity-compliance">
+                    <div class="pbj-summary-pod-title-wrap">
+                        <div class="pbj-summary-pod-title-row pbj-bench-card-header">
+                            <div class="pbj-bench-card-header-start">
+                                <div class="pbj-summary-pod-title" id="pbjSummaryPodAcuityTitle">Benchmarks ({{ static_period_label|default('2025') }})</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pbj-summary-pod-body pbj-summary-pod-body--stretch">
+                        <div class="pbj-bench-report-groups pbj-summary-pod-rows">
+                            <div class="pbj-summary-pod-row pbj-bench-split-card pbj-bench-split-card--peers">
+                                <div class="pbj-bench-split-side">
+                                    <span class="pbj-bench-split-heading pbj-bench-split-heading--labeled"><i class="fas fa-location-dot pbj-bench-heading-icon" aria-hidden="true"></i>Peers (HPRD)</span>
+                                </div>
+                                <div class="pbj-bench-split-values pbj-bench-split-values--stacked">
+                                    <div class="pbj-bench-split-value-row pbj-bench-split-value-row--inline">
+                                        <span class="pbj-preview-mask-bar pbj-preview-mask-bar--md ms-auto" aria-hidden="true"></span>
+                                    </div>
+                                    <div class="pbj-bench-split-value-row pbj-bench-split-value-row--inline">
+                                        <span class="pbj-preview-mask-bar pbj-preview-mask-bar--sm ms-auto" aria-hidden="true"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pbj-summary-pod-row pbj-bench-split-card pbj-bench-split-card--acuity">
+                                <div class="pbj-bench-split-side">
+                                    <span class="pbj-bench-split-heading pbj-bench-split-heading--labeled">Acuity (HPRD)</span>
+                                </div>
+                                <div class="pbj-bench-split-values pbj-bench-split-values--stacked">
+                                    <div class="pbj-bench-split-value-row pbj-bench-split-value-row--inline">
+                                        <span class="pbj-preview-mask-bar pbj-preview-mask-bar--md ms-auto" aria-hidden="true"></span>
+                                    </div>
+                                    <div class="pbj-bench-split-value-row pbj-bench-split-value-row--inline">
+                                        <span class="pbj-preview-mask-bar pbj-preview-mask-bar--sm ms-auto" aria-hidden="true"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pbj-summary-pod-row pbj-bench-split-card pbj-bench-split-card--compliance">
+                                <div class="pbj-bench-split-side">
+                                    <span class="pbj-bench-split-heading pbj-bench-split-heading--labeled"><i class="fas fa-scale-balanced pbj-bench-heading-icon" aria-hidden="true"></i>Compliance</span>
+                                </div>
+                                <div class="pbj-bench-split-values pbj-bench-split-values--stacked">
+                                    <div class="pbj-bench-split-value-row pbj-bench-split-value-row--inline">
+                                        <span class="pbj-preview-mask-bar pbj-preview-mask-bar--sm ms-auto" aria-hidden="true"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="pbj-summary-audit-scope-footer pbj-preview-workspace-explainer">
+                <p class="pbj-audit-scope-footer-text mb-0">{{ preview_pod_explainer|default('Staffing metrics, benchmarks, and compliance findings are available in the full facility dashboard with authorized access.', true) }}</p>
+            </div>
+        </div>
+    </div>
+</div>

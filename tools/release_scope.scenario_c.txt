@@ -1,0 +1,20 @@
+TASK: release workflow safety tooling
+
+INTENDED:
+tools/_git_helpers.py
+tools/preflight.py
+tools/check_release_diff.py
+tools/release_check.py
+tools/release_scope.example.txt
+AGENT_GUARDRAILS.md
+.cursor/rules/pbj320-release-intent.mdc
+tests/test_owners_hub_index_markers.py
+tests/test_release_smoke_invariants.py
+.gitignore
+AGENTS.md
+
+DO NOT SHIP:
+ownership/*
+app.py ownership handlers
+app.py
+render.yaml

@@ -1,0 +1,53 @@
+{# V3 pane shells — Superdynamic pane headers + evidence lock panels #}
+{% from 'partials/v2/v3_pane_header.html' import pbj_v3_pane_header %}
+
+<section id="pbjV3PaneBenchmarks" class="pbj-preview-v3-pane-shell dashboard-section guided-scroll-anchor mb-3" aria-labelledby="pbjV3PaneBenchmarksTitle">
+    {{ pbj_v3_pane_header('pbjV3PaneBenchmarks', 'Benchmarks', 'Case-mix benchmarks, provider info, and regional peers.') }}
+    <div class="pbj-chart-evidence-group" role="group" aria-label="Benchmarks workspace">
+        <div class="pbj-chart-evidence-list">
+            <div class="pbj-chart-module pbj-chart-utility-disclosure pbj-chart-evidence-list__item">
+                <div class="pbj-preview-evidence-lock-panel">
+                    <p class="small text-muted mb-0">Case-mix benchmarks, provider info, and regional peer comparisons require authorized access.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="pbjV3PaneWorkforce" class="pbj-preview-v3-pane-shell dashboard-section guided-scroll-anchor mb-3" aria-labelledby="pbjV3PaneWorkforceTitle">
+    {{ pbj_v3_pane_header('pbjV3PaneWorkforce', 'PBJ Records', 'Daily PBJ table, employee roster, and workforce patterns') }}
+    <div class="pbj-chart-evidence-group" role="group" aria-label="PBJ Records workspace">
+        <div class="pbj-chart-evidence-list">
+            <div class="pbj-chart-module pbj-chart-utility-disclosure pbj-chart-evidence-list__item">
+                <div class="pbj-preview-evidence-lock-panel">
+                    <p class="small text-muted mb-0">Daily PBJ table, employee roster, and workforce patterns require authorized access.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="pbjV3PaneRisk" class="pbj-preview-v3-pane-shell dashboard-section guided-scroll-anchor mb-3" aria-labelledby="pbjV3PaneRiskTitle">
+    {{ pbj_v3_pane_header('pbjV3PaneRisk', 'Signals', 'Inspections, ownership changes, and staffing-related signals') }}
+    <div class="pbj-chart-evidence-group" role="group" aria-label="Signals workspace">
+        <div class="pbj-chart-evidence-list">
+            <div class="pbj-chart-module pbj-chart-utility-disclosure pbj-chart-evidence-list__item">
+                <div class="pbj-preview-evidence-lock-panel">
+                    <p class="small text-muted mb-0">Inspections, ownership changes, and staffing-related signals require authorized access.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="pbj-preview-evidence-group pbj-preview-advanced-modules" role="group" aria-label="Advanced dashboard modules">
+    <p class="pbj-chart-evidence-group-label mb-0">{{ optional_modules_disclaimer|default('Advanced modules below are available on full dashboards where facility data coverage supports them.') }}</p>
+    <div class="pbj-chart-evidence-list">
+        {% for mod in optional_modules %}
+        <div class="pbj-chart-module pbj-chart-evidence-list__item pbj-preview-advanced-module-row">
+            <span class="pbj-preview-advanced-module-name">{{ mod.label }}</span>
+            <span class="pbj-preview-advanced-module-note">Available where full facility data coverage supports them.</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>

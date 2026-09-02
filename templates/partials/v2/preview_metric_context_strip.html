@@ -1,0 +1,17 @@
+{# Static metric trend strip — mirrors metric_context_strip.html #}
+<div class="pbj-census-context-strip pbj-census-context-strip--metric-trend" aria-label="{{ strip_aria_label|default(label, true) }}">
+    <dl class="pbj-census-context-stats mb-0">
+        <div class="pbj-census-context-stat pbj-census-context-stat--avg">
+            <dt>{{ label }}</dt>
+            <dd class="pbj-census-context-avg-cell">
+                <span class="pbj-preview-mask-bar pbj-preview-mask-bar--md" aria-hidden="true"></span>
+            </dd>
+        </div>
+        {% if secondary_label %}
+        <div class="pbj-census-context-stat">
+            <dt>{{ secondary_label }}</dt>
+            <dd><span class="pbj-preview-mask-bar pbj-preview-mask-bar--sm" aria-hidden="true"></span></dd>
+        </div>
+        {% endif %}
+    </dl>
+</div>

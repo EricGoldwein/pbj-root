@@ -15,6 +15,7 @@ Derived: data/provider_indexes/, generated metrics JSON; pbj-wrapped/dist is leg
 Scratch: _scratch/ only (never commit smoke/patch/tmp at root)
 Authority: pbj-contract/ + AUTHORITY_LADDER.md — do not treat process MD as law
 Ship: selective git add; no push/delete unless asked; Verified from: required for schema/route claims
+Engineering ops: preflight canonical runtime/data/config; one acceptance criterion; first broken link; freeze PASS stages; no parallel runtimes/DBs; audit external ownership; normalize IDs/units/dates/nulls at ingest; stop when criterion passes (optional detail: ../320website/docs/ENGINEERING_PLAYBOOK.md if present)
 ```
 
 ## Four layers (quick)
@@ -37,3 +38,26 @@ Ship: selective git add; no push/delete unless asked; Verified from: required fo
 - No commit/push unless explicitly asked.
 - Never `git add -A`. Follow `.cursor/rules/pbj320-clean-hotfix.mdc`.
 - No deletes/moves of tracked files without explicit ask.
+- **Release intent:** local WIP ≠ authorization to ship. Read `AGENT_GUARDRAILS.md`; run `python tools/preflight.py` and `python tools/release_check.py` before commit/PR/deploy.
+
+## Engineering ops (local)
+
+Essential debug/change discipline for this repo. Do **not** require another sibling
+repo to be present. If `../320website/docs/ENGINEERING_PLAYBOOK.md` exists on the
+local filesystem, treat it as optional detail; these rules remain authoritative here.
+
+1. **Preflight** — Before patches, identify the canonical runtime, data paths, and
+   config that actually serve the surface you are changing.
+2. **Acceptance lock** — State one measurable acceptance criterion up front; stop
+   when it passes.
+3. **First broken link** — Trace pipeline failures to the first broken stage; fix
+   only that link before rewriting downstream.
+4. **Freeze PASS stages** — Do not reopen proven PASS stages unless new evidence
+   implicates them.
+5. **No parallel convenience runtimes** — Do not invent a second process, database,
+   or data root to “make the fix easier.”
+6. **External ownership** — Audit who owns an external integration before changing
+   its wiring, credentials, or contracts.
+7. **Ingestion boundaries** — Normalize source IDs, units, dates, and null semantics
+   at import/ingest edges — not ad hoc in every consumer.
+8. **Stop** — When the acceptance criterion is met, stop; park follow-ups.

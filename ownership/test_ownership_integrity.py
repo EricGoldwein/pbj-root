@@ -413,5 +413,156 @@ class NetworkIndexabilityTests(unittest.TestCase):
         self.assertTrue(out.is_file())
 
 
+class SnfOwnersCsvPathPolicyTests(unittest.TestCase):
+    """Runtime must follow ownership_release_policy, not filesystem recency."""
+
+    def test_newer_stray_csv_cannot_become_active_release(self) -> None:
+        from ownership.owner_profile import resolve_snf_owners_csv_path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ownership = root / "ownership"
+            ownership.mkdir()
+            approved = ownership / "SNF_All_Owners_2026.07.17.csv"
+            stray_newer = ownership / "SNF_All_Owners_2026.07.31.csv"
+            approved.write_text("col\napproved\n", encoding="utf-8")
+            stray_newer.write_text("col\nstray\n", encoding="utf-8")
+            # Newer mtime on the stray file (would win under old mtime/filename selectors).
+            os_utime = __import__("os").utime
+            os_utime(approved, (1_700_000_000, 1_700_000_000))
+            os_utime(stray_newer, (1_800_000_000, 1_800_000_000))
+
+            policy = {
+                "active_release_date": "2026-07-17",
+                "releases": {
+                    "2026-07-17": {
+                        "ownership_source_filename": "SNF_All_Owners_2026.07.17.csv",
+                        "ownership_source_sha256": "deadbeef",
+                        "bridge_lookup_filename": "release_2026-07-17_lookup.json",
+                        "bridge_pairing_status": "exact_release_date_match",
+                        "status": "active",
+                    }
+                },
+            }
+            (ownership / "ownership_release_policy.json").write_text(
+                json.dumps(policy), encoding="utf-8"
+            )
+
+            selected = resolve_snf_owners_csv_path(root)
+            self.assertEqual(selected.name, "SNF_All_Owners_2026.07.17.csv")
+            self.assertEqual(selected.resolve(), approved.resolve())
+            self.assertNotEqual(selected.name, stray_newer.name)
+
+    def test_missing_policy_source_fails_closed_not_newest(self) -> None:
+        from ownership.owner_profile import resolve_snf_owners_csv_path
+        from ownership.ownership_release_policy import OwnershipReleasePolicyError
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ownership = root / "ownership"
+            ownership.mkdir()
+            # Only a newer stray exists; policy still points at the approved name.
+            (ownership / "SNF_All_Owners_2026.07.31.csv").write_text(
+                "col\nstray\n", encoding="utf-8"
+            )
+            policy = {
+                "active_release_date": "2026-07-17",
+                "releases": {
+                    "2026-07-17": {
+                        "ownership_source_filename": "SNF_All_Owners_2026.07.17.csv",
+                        "ownership_source_sha256": "deadbeef",
+                        "bridge_lookup_filename": "release_2026-07-17_lookup.json",
+                        "bridge_pairing_status": "exact_release_date_match",
+                        "status": "active",
+                    }
+                },
+            }
+            (ownership / "ownership_release_policy.json").write_text(
+                json.dumps(policy), encoding="utf-8"
+            )
+
+            with self.assertRaises(OwnershipReleasePolicyError) as ctx:
+                resolve_snf_owners_csv_path(root)
+            msg = str(ctx.exception).lower()
+            self.assertIn("missing", msg)
+            self.assertIn("snf_all_owners_2026.07.17.csv", msg)
+
+
+class ValidateReleaseOwnershipPolicyTests(unittest.TestCase):
+    """CI release validator must use policy authority, not newest-on-disk."""
+
+    def test_july17_active_when_july31_stray_present(self) -> None:
+        scripts_dir = _ROOT / "scripts"
+        if str(scripts_dir) not in sys.path:
+            sys.path.insert(0, str(scripts_dir))
+        import validate_release as vr  # noqa: E402
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ownership = root / "ownership"
+            ownership.mkdir()
+            approved = ownership / "SNF_All_Owners_2026.07.17.csv"
+            stray = ownership / "SNF_All_Owners_2026.07.31.csv"
+            approved.write_text("col\napproved\n", encoding="utf-8")
+            stray.write_text("col\nstray\n", encoding="utf-8")
+            policy = {
+                "active_release_date": "2026-07-17",
+                "releases": {
+                    "2026-07-17": {
+                        "ownership_source_filename": "SNF_All_Owners_2026.07.17.csv",
+                        "ownership_source_sha256": "deadbeef",
+                        "bridge_lookup_filename": "release_2026-07-17_lookup.json",
+                        "bridge_pairing_status": "exact_release_date_match",
+                        "status": "active",
+                    }
+                },
+            }
+            (ownership / "ownership_release_policy.json").write_text(
+                json.dumps(policy), encoding="utf-8"
+            )
+
+            with patch.object(vr, "REPO_ROOT", root):
+                month, path = vr._policy_ownership_month_and_file()
+                newer = vr._discovered_newer_ownership_snapshots(path)
+
+            self.assertIsNotNone(path)
+            assert path is not None
+            self.assertEqual(path.name, "SNF_All_Owners_2026.07.17.csv")
+            self.assertEqual(month, "July 2026")
+            self.assertEqual([p.name for p in newer], ["SNF_All_Owners_2026.07.31.csv"])
+
+
+class DonorDashboardOwnershipPathTests(unittest.TestCase):
+    """Donor dashboard raw ownership path must not fall back to hardcoded releases."""
+
+    def test_policy_failure_raises_not_may_fallback(self) -> None:
+        from ownership.ownership_release_policy import OwnershipReleasePolicyError
+
+        donor_dir = _ROOT / "donor"
+        if str(donor_dir) not in sys.path:
+            sys.path.insert(0, str(donor_dir))
+        import owner_donor_dashboard as dash  # noqa: E402
+
+        with patch(
+            "ownership.owner_profile.snf_owners_csv_path",
+            side_effect=OwnershipReleasePolicyError("policy missing"),
+        ):
+            with self.assertRaises(OwnershipReleasePolicyError):
+                dash._get_latest_ownership_raw_path()
+
+    def test_resolves_policy_selected_path(self) -> None:
+        donor_dir = _ROOT / "donor"
+        if str(donor_dir) not in sys.path:
+            sys.path.insert(0, str(donor_dir))
+        import owner_donor_dashboard as dash  # noqa: E402
+
+        expected = _ROOT / "ownership" / "SNF_All_Owners_2026.07.17.csv"
+        if not expected.is_file():
+            self.skipTest("policy-selected July 2026 ownership CSV not on disk")
+
+        path, _ = dash._get_latest_ownership_raw_path()
+        self.assertEqual(path.name, expected.name)
+
+
 if __name__ == "__main__":
     unittest.main()

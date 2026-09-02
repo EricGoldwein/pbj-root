@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build SQLite + org-name index from the newest SNF_All_Owners*.csv (Render build step)."""
+"""Build SQLite + org-name index from the policy-selected SNF_All_Owners*.csv (Render build step)."""
 from __future__ import annotations
 
 import gzip
@@ -117,9 +117,13 @@ def build_derived_indexes(*, db_path: Path | None = None) -> None:
 
 
 def build_sqlite_from_csv(*, out_path: Path) -> None:
-    csv_path = snf_owners_csv_path()
-    if not csv_path or not csv_path.is_file():
-        print(f"[build_snf_owners_index] No SNF owners CSV found under {OWNERSHIP_DIR}")
+    try:
+        csv_path = snf_owners_csv_path()
+    except Exception as exc:
+        print(f"[build_snf_owners_index] Ownership release policy failed: {exc}")
+        sys.exit(1)
+    if not csv_path.is_file():
+        print(f"[build_snf_owners_index] Configured SNF owners CSV missing: {csv_path}")
         sys.exit(1)
 
     print(f"[build_snf_owners_index] Source: {csv_path.name} -> {out_path.name}")

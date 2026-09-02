@@ -101,17 +101,36 @@ def _latest_provider_snapshot_file() -> Optional[Path]:
     return newest_provider_snapshot_path(REPO_ROOT)
 
 
-def _latest_ownership_month_and_file() -> Tuple[Optional[str], Optional[Path]]:
-    """Newest ownership snapshot by filename date (not mtime — CI checkout mtimes lie)."""
+def _policy_ownership_month_and_file() -> Tuple[Optional[str], Optional[Path]]:
+    """Active ownership snapshot from ownership_release_policy (not newest on disk)."""
+    try:
+        from ownership.ownership_release_policy import (  # pylint: disable=import-error
+            OwnershipReleasePolicyError,
+            resolve_ownership_source_path,
+        )
+        from ownership.owner_profile import snf_owners_release_month_year  # pylint: disable=import-error
+
+        path = resolve_ownership_source_path(REPO_ROOT, verify_checksum=False)
+        ym = snf_owners_release_month_year(path)
+        if ym:
+            return _format_month_year(ym[0], ym[1]), path
+        return None, path
+    except OwnershipReleasePolicyError:
+        return None, None
+
+
+def _discovered_newer_ownership_snapshots(
+    active_path: Optional[Path],
+) -> List[Path]:
+    """On-disk SNF_All_Owners files newer than policy-active (informational only)."""
     ownership_dir = REPO_ROOT / "ownership"
     files = [
         p
         for p in ownership_dir.glob("SNF_All_Owners*.csv")
         if p.is_file() and "facility_" not in p.name.lower()
     ]
-    files += [p for p in ownership_dir.glob("SNF_All_Owners*.parquet") if p.is_file()]
-    if not files:
-        return None, None
+    if not active_path:
+        return []
 
     def _rank(path: Path) -> Tuple[int, int, int]:
         parsed = _parse_ownership_filename(path)
@@ -124,11 +143,10 @@ def _latest_ownership_month_and_file() -> Tuple[Optional[str], Optional[Path]]:
             day = int(m_iso.group(3))
         return (y, mo, day)
 
-    latest_file = max(files, key=_rank)
-    ranked = _rank(latest_file)
-    if ranked == (0, 0, 0):
-        return None, latest_file
-    return _format_month_year(ranked[0], ranked[1]), latest_file
+    active_rank = _rank(active_path)
+    if active_rank == (0, 0, 0):
+        return []
+    return [p for p in files if p.resolve() != active_path.resolve() and _rank(p) > active_rank]
 
 
 def _newest_nh_provider_info_path() -> Optional[Path]:
@@ -151,7 +169,7 @@ def _check_displayed_source_months(errors: List[str], notes: List[str]) -> None:
     import app as app_module  # pylint: disable=import-error
 
     inferred_provider_latest, inferred_provider_previous, inferred_provider_file = _latest_provider_months()
-    inferred_ownership_latest, inferred_ownership_file = _latest_ownership_month_and_file()
+    inferred_ownership_latest, inferred_ownership_file = _policy_ownership_month_and_file()
     displayed = app_module.get_dynamic_dates()
     file_dates = get_latest_data_periods()
 
@@ -185,11 +203,13 @@ def _check_displayed_source_months(errors: List[str], notes: List[str]) -> None:
     if hasattr(owner_dash, "_get_latest_provider_info_path"):
         selected_provider_file, _ = owner_dash._get_latest_provider_info_path()
     if hasattr(owner_dash, "_get_latest_ownership_raw_path"):
-        selected_ownership_file, _ = owner_dash._get_latest_ownership_raw_path()
+        try:
+            selected_ownership_file, _ = owner_dash._get_latest_ownership_raw_path()
+        except Exception as exc:
+            errors.append(f"owner dashboard ownership resolver failed: {exc}")
+            selected_ownership_file = None
     if selected_provider_file is None and hasattr(owner_dash, "PROVIDER_INFO_LATEST"):
         selected_provider_file = owner_dash.PROVIDER_INFO_LATEST
-    if selected_ownership_file is None and hasattr(owner_dash, "OWNERSHIP_RAW"):
-        selected_ownership_file = owner_dash.OWNERSHIP_RAW
 
     newest_nh = _newest_nh_provider_info_path()
     if newest_nh and selected_provider_file and selected_provider_file.resolve() != newest_nh.resolve():
@@ -203,9 +223,18 @@ def _check_displayed_source_months(errors: List[str], notes: List[str]) -> None:
             )
     if inferred_ownership_file and selected_ownership_file and selected_ownership_file.resolve() != inferred_ownership_file.resolve():
         errors.append(
-            "owner dashboard ownership snapshot path is not newest by filename date: "
-            f"selected={selected_ownership_file.name}, latest={inferred_ownership_file.name}"
+            "owner dashboard ownership snapshot path is not policy-selected release: "
+            f"selected={selected_ownership_file.name}, policy={inferred_ownership_file.name}"
         )
+
+    newer_unapproved = _discovered_newer_ownership_snapshots(inferred_ownership_file)
+    if newer_unapproved:
+        names = ", ".join(p.name for p in newer_unapproved)
+        notes.append(
+            f"Unapproved newer ownership snapshots on disk (informational only): {names}"
+        )
+    if inferred_ownership_file:
+        notes.append(f"Policy-active ownership snapshot={inferred_ownership_file.name}")
 
     notes.append(
         "Displayed dates: "

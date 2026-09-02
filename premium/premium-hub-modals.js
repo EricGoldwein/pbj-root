@@ -161,8 +161,21 @@
         openModal(id);
     };
 
+    function prefillCcnFromUrl() {
+        var params = new URLSearchParams(window.location.search);
+        var ccn = (params.get("ccn") || "").trim();
+        if (!ccn) return;
+        ["hub-premium-ccn", "hub-demo-ccn"].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el && !String(el.value || "").trim()) {
+                el.value = ccn;
+            }
+        });
+    }
+
     function openModalFromUrl() {
         var params = new URLSearchParams(window.location.search);
+        prefillCcnFromUrl();
         var raw = (params.get("open") || "").trim().toLowerCase();
         if (!raw) {
             var hash = (window.location.hash || "").replace(/^#/, "").trim().toLowerCase();

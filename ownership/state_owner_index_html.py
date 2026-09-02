@@ -11,6 +11,7 @@ from ownership.chow_lookup import (
     chow_facility_label,
     chow_facility_place_label,
     chow_records_for_state,
+    chow_records_national,
     format_chow_date_feed_label,
 )
 from ownership.display_format import format_org_display
@@ -20,7 +21,7 @@ from ownership.state_owner_index import (
     STATE_INDEX_META,
     format_index_owner_name,
     format_portfolio_facility_count,
-    filter_ownership_interest_portfolio_rows,
+    list_national_top_owner_rows,
     list_state_owner_index_rows,
     state_index_layout_meta,
     state_owner_index_is_draft,
@@ -44,14 +45,13 @@ _CMS_CHOW_URL = (
 _CMS_PBJ_URL = "https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing"
 _FEC_URL = "https://fec.gov/"
 
-_LARGEST_PORTFOLIOS_TITLE: dict[str, tuple[str, str]] = {
-    "NY": ("Largest NY ownership-interest portfolios", "Largest New York ownership-interest portfolios"),
-    "CT": ("Largest CT ownership-interest portfolios", "Largest Connecticut ownership-interest portfolios"),
-    "FL": ("Largest FL ownership-interest portfolios", "Largest Florida ownership-interest portfolios"),
-    "NJ": ("Largest NJ ownership-interest portfolios", "Largest New Jersey ownership-interest portfolios"),
-    "ID": ("Largest ID ownership-interest portfolios", "Largest Idaho ownership-interest portfolios"),
-}
 
+def _largest_portfolios_titles(state_code: str, state_name: str) -> tuple[str, str]:
+    st = (state_code or "").strip().upper()[:2]
+    if not st:
+        return ("Largest ownership portfolios", "Largest ownership portfolios")
+    name = (state_name or st).strip()
+    return (f"Largest {st} portfolios", f"Largest {name} portfolios")
 
 def _render_draft_preview_banner(state_name: str) -> str:
     label = html.escape((state_name or "This state").strip())
@@ -251,7 +251,8 @@ def _try_chip_entry(row: dict[str, Any], *, state_code: str = "") -> dict[str, s
     if not display or display == "—":
         return None
     href = _owner_profile_href(
-        str(row.get("profile_url") or "").strip() or associate_profile_url(pac),
+        str(row.get("profile_url") or "").strip()
+        or associate_profile_url(pac, display),
         state_code=state_code,
     )
     if not href.startswith("/owners/") or href.rstrip("/") == "/owners":
@@ -302,10 +303,10 @@ def _render_try_chip_link(chip: dict[str, str]) -> str:
     return f'<a class="owners-state-try-chip" href="{href}" aria-label="{label}">{name}</a>'
 
 
-def _render_panel_tabs(state_code: str) -> str:
+def _render_panel_tabs(state_code: str, state_name: str = "") -> str:
     """Mobile tab switcher (portfolios vs recent CHOW); hidden on wide desktop."""
     st = (state_code or "").strip().upper()[:2]
-    short, _long = _LARGEST_PORTFOLIOS_TITLE.get(st, ("Largest ownership-interest portfolios", "Largest ownership-interest portfolios"))
+    short, _long = _largest_portfolios_titles(st, state_name)
     portfolios_label = html.escape(short)
     return (
         '<div class="owners-state-panel-tabs" role="tablist" '
@@ -322,30 +323,80 @@ def _render_panel_tabs(state_code: str) -> str:
     )
 
 
-def _render_largest_portfolios_title(state_code: str) -> str:
+def _render_scope_search_module(
+    *,
+    search_label: str,
+    search_placeholder: str = "Name or 10-digit PAC",
+    selected_code: str | None = None,
+    try_search_html: str = "",
+) -> str:
+    """Shared search card: state scope selector + owner search (+ optional Try chips)."""
+    from ownership.nav_owners import owners_scope_select_html
+
+    label = html.escape(search_label)
+    placeholder = html.escape(search_placeholder)
+    scope_html = owners_scope_select_html(
+        select_id="ownersHubScopeSelect",
+        selected_code=selected_code,
+    )
+    return f"""
+        <div class="owners-hub-search owners-state-search-card owners-scope-search" role="search" aria-label="{label}">
+          <div class="owners-hub-search-input-row owners-scope-search-row">
+            <div class="owners-hub-panel-state-wrap owners-scope-select-wrap">
+              {scope_html}
+            </div>
+            <div class="owners-scope-search-field-wrap">
+              <label class="owners-scope-search-field-label" for="ownersHubSearchInput">Search owners</label>
+              <div class="owners-state-search-field">
+                <span class="owners-state-search-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
+                </span>
+                <input type="search" id="ownersHubSearchInput" class="owners-hub-search-input owners-state-search-input"
+                  placeholder="{placeholder}" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
+                  inputmode="search" enterkeyhint="search"
+                  aria-label="{label}"
+                  aria-autocomplete="list" aria-controls="ownersHubSearchResults" aria-expanded="false">
+                <ul id="ownersHubSearchResults" class="owners-hub-search-results owners-state-search-results" role="listbox" hidden></ul>
+              </div>
+            </div>
+          </div>
+          {try_search_html}
+        </div>
+    """
+
+
+def _portfolio_rank_help_tip(state_code: str, state_name: str = "") -> str:
+    """Tooltip for largest-portfolios panel ranking methodology."""
+    st = (state_code or "").strip().upper()[:2]
+    if not st:
+        return "Ranked by distinct CMS-linked facilities nationwide."
+    label = (state_name or st).strip()
+    return f"Ranked by distinct CMS-linked facilities in {label}."
+
+
+def _render_largest_portfolios_title(state_code: str, state_name: str = "") -> str:
     """Short state abbrev in panel header; full state name when layout has room."""
     st = (state_code or "").strip().upper()[:2]
-    short, long = _LARGEST_PORTFOLIOS_TITLE.get(st, ("Largest ownership-interest portfolios", "Largest ownership-interest portfolios"))
+    short, long = _largest_portfolios_titles(st, state_name)
+    help_tip = html.escape(_portfolio_rank_help_tip(st, state_name), quote=True)
     return (
+        '<div class="owners-state-panel-title-row">'
         '<h2 id="ownersStateTopHeading" class="owners-state-panel-title">'
         f'<span class="owners-state-panel-title-short">{html.escape(short)}</span>'
         f'<span class="owners-state-panel-title-long">{html.escape(long)}</span>'
         "</h2>"
+        f'<button type="button" class="owners-hub-panel-info" '
+        f'title="{help_tip}" aria-label="{help_tip}">?</button>'
+        "</div>"
     )
 
 
 def _render_state_h1(h1: str) -> str:
-    """Two-line mobile stack: '{state} Nursing Home' / 'Ownership & Control Search'."""
-    suffix = " Ownership & Control Search"
-    if h1.endswith(suffix):
-        primary = html.escape(h1[: -len(suffix)])
-        return (
-            '<h1 class="owners-state-h1 owners-state-h1--split">'
-            f'<span class="owners-state-h1-primary">{primary}</span>'
-            '<span class="owners-state-h1-secondary">Ownership &amp; Control Search</span>'
-            "</h1>"
-        )
-    return f'<h1 class="owners-state-h1">{html.escape(h1)}</h1>'
+    """Single balanced H1 — no split “search” line on mobile."""
+    return (
+        f'<h1 class="owners-state-h1 owners-state-h1--balanced">'
+        f"{html.escape(h1)}</h1>"
+    )
 
 
 def _render_try_search_hints(try_pool: list[dict[str, Any]], *, state_slug: str, state_code: str = "") -> str:
@@ -391,14 +442,12 @@ def _render_top_orgs(rows: list[dict[str, Any]], *, state_code: str, state_name:
         name = html.escape(format_index_owner_name(str(row.get("name") or "—")))
         raw_url = str(row.get("profile_url") or f"/owners/{row.get('associate_id') or ''}")
         url = html.escape(_owner_profile_href(raw_url, state_code=st))
-        oi_n = int(row.get("facility_count_rank") or row.get("facility_count_ownership_interest") or 0)
-        if oi_n > 0:
-            count_lbl = f"{oi_n} ownership-interest"
-        else:
-            count_lbl = format_portfolio_facility_count(st, row)
+        count_lbl = format_portfolio_facility_count(st, row)
         in_n = int(row.get("facility_count") or 0)
         total_n = int(row.get("facility_count_total") or in_n)
-        if total_n > in_n:
+        if not st:
+            count_tip = f"{total_n or in_n} distinct CMS-linked facilities nationwide"
+        elif total_n > in_n:
             count_tip = (
                 f"{in_n} distinct CMS-linked {state_name or st} facilities; "
                 f"{total_n} nationwide for this owner"
@@ -425,9 +474,18 @@ def _render_chow_feed(
     state_staffing_href: str,
 ) -> str:
     st = (state_code or "").strip().upper()[:2]
-    all_rows = chow_records_for_state(st, limit=0)
+    all_rows = (
+        chow_records_national(limit=0)
+        if not st
+        else chow_records_for_state(st, limit=0)
+    )
     if not all_rows:
-        return '<p class="owners-state-empty">No recent ownership changes in the index.</p>'
+        empty_msg = (
+            "No recent ownership changes in the national index."
+            if not st
+            else "No recent ownership changes in the index."
+        )
+        return f'<p class="owners-state-empty">{empty_msg}</p>'
     rows = all_rows[:_CHOW_FEED_INITIAL]
     items: list[str] = []
     stores: list[str] = []
@@ -496,10 +554,8 @@ def render_state_owner_index_body(
     subtitle = layout["subtitle"]
     canon = layout["canonical_path"]
 
-    all_index_rows, index_total = list_state_owner_index_rows(st, limit=None, offset=0)
-    oi_rows = filter_ownership_interest_portfolio_rows(all_index_rows)
-    try_pool_rows = oi_rows[:_TRY_POOL_LIMIT]
-    top_rows = oi_rows[:default_browse_limit]
+    try_pool_rows, index_total = list_state_owner_index_rows(st, limit=_TRY_POOL_LIMIT, offset=0)
+    top_rows, _ = list_state_owner_index_rows(st, limit=default_browse_limit, offset=0)
     page_ctx = state_owner_page_context(st)
     top_html = _render_top_orgs(top_rows, state_code=st, state_name=state_name)
     try_search_html = _render_try_search_hints(try_pool_rows, state_slug=state_slug, state_code=st)
@@ -511,13 +567,17 @@ def render_state_owner_index_body(
         state_name=state_name,
         state_staffing_href=state_staffing_path,
     )
-    search_label = html.escape(f"Search {state_name} owners")
-    search_placeholder = html.escape("Owner name or 10-digit PAC")
+    search_label = f"Search {state_name} owners"
     index_stats_html = _render_index_stats_strip(page_ctx)
     sources_modal_html = _render_sources_modal()
     method_sources_html = _render_search_card_sources()
     draft_banner_html = (
         _render_draft_preview_banner(state_name) if state_owner_index_is_draft(st) else ""
+    )
+    search_module_html = _render_scope_search_module(
+        search_label=search_label,
+        selected_code=st,
+        try_search_html=try_search_html,
     )
 
     body = f"""
@@ -540,28 +600,15 @@ def render_state_owner_index_body(
           </div>
         </header>
 
-        <div class="owners-hub-search owners-state-search-card" role="search" aria-label="{search_label}">
-          <div class="owners-state-search-field">
-            <label class="visually-hidden" for="ownersHubSearchInput">{search_label}</label>
-            <span class="owners-state-search-icon" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
-            </span>
-            <input type="search" id="ownersHubSearchInput" class="owners-hub-search-input owners-state-search-input"
-              placeholder="{search_placeholder}" autocomplete="off" spellcheck="false"
-              aria-label="{search_label}"
-              aria-autocomplete="list" aria-controls="ownersHubSearchResults" aria-expanded="false">
-            <ul id="ownersHubSearchResults" class="owners-hub-search-results owners-state-search-results" role="listbox" hidden></ul>
-          </div>
-          {try_search_html}
-        </div>
+        {search_module_html}
       </div>
 
-      {_render_panel_tabs(st)}
+      {_render_panel_tabs(st, state_name)}
       <div class="owners-state-panels">
         <section class="owners-state-panel is-active" id="ownersStatePanelPortfolios" role="tabpanel"
           aria-labelledby="ownersStateTopHeading ownersStateTabPortfolios" data-owners-state-panel="portfolios">
           <header class="owners-state-panel-head owners-state-panel-head--desktop">
-            {_render_largest_portfolios_title(st)}
+            {_render_largest_portfolios_title(st, state_name)}
           </header>
           <div class="owners-state-panel-body">
             {top_html}
@@ -612,20 +659,155 @@ def render_state_owner_index_body(
     return body, layout_meta
 
 
+def render_owners_hub_index_body(
+    state_code: str | None = None,
+    *,
+    get_canonical_slug: Callable[[str], str] | None = None,
+    default_browse_limit: int = _TOP_ORGS_LIMIT,
+) -> tuple[str, dict[str, str]]:
+    """National /owners hub — same IA as state pages, nationwide scope + state selector."""
+    _ = (state_code, get_canonical_slug)  # legacy ?st= handled by route redirect
+    from ownership.state_owner_index import owners_hub_page_context
+
+    ctx_hub = owners_hub_page_context()
+    sources_modal_html = _render_sources_modal()
+    method_sources_html = _render_search_card_sources()
+
+    updated = str(ctx_hub.get("owners_updated") or "").strip()
+    catalog_n = int(str(ctx_hub.get("catalog_entity_count") or "0") or "0")
+    meta_bits: list[str] = []
+    if catalog_n:
+        meta_bits.append(f"{catalog_n:,} owners nationwide")
+    meta_bits.append("CMS data")
+    if updated:
+        meta_bits.append(updated)
+    meta_html = (
+        f'<p class="owners-hub-index-meta owners-state-search-meta">'
+        f'{html.escape(" · ".join(meta_bits))}</p>'
+        if meta_bits
+        else ""
+    )
+
+    page_title = "Nursing Home Ownership & Control | PBJ320"
+    meta_description = (
+        "Search CMS nursing home owners nationwide by name or PAC. "
+        "Explore largest ownership portfolios and recent ownership changes across all states."
+    )
+    subtitle = (
+        "Explore ownership groups, facility portfolios, and staffing patterns using public CMS data."
+    )
+
+    try_pool_rows = list_national_top_owner_rows(limit=_TRY_POOL_LIMIT)
+    top_rows = list_national_top_owner_rows(limit=default_browse_limit)
+    top_html = _render_top_orgs(top_rows, state_code="", state_name="nationwide")
+    try_search_html = _render_try_search_hints(try_pool_rows, state_slug="", state_code="")
+    chow_body_html = _render_chow_feed(
+        "",
+        state_name="nationwide",
+        state_staffing_href="/report",
+    )
+    search_module_html = _render_scope_search_module(
+        search_label="Search nursing home owners nationwide",
+        selected_code=None,
+        try_search_html=try_search_html,
+    )
+    panels_html = f"""
+      {_render_panel_tabs("", "nationwide")}
+      <div class="owners-state-panels">
+        <section class="owners-state-panel is-active" id="ownersStatePanelPortfolios" role="tabpanel"
+          aria-labelledby="ownersStateTopHeading ownersStateTabPortfolios" data-owners-state-panel="portfolios">
+          <header class="owners-state-panel-head owners-state-panel-head--desktop">
+            {_render_largest_portfolios_title("", "nationwide")}
+          </header>
+          <div class="owners-state-panel-body">
+            {top_html}
+          </div>
+        </section>
+        <section class="owners-state-panel owners-state-panel--chow" id="ownersStatePanelChow" role="tabpanel"
+          aria-labelledby="ownersStateChowHeading ownersStateTabChow" data-owners-state-panel="chow" hidden>
+          <header class="owners-state-panel-head owners-state-panel-head--desktop">
+            <h2 id="ownersStateChowHeading" class="owners-state-panel-title">Recent ownership changes</h2>
+          </header>
+          <div class="owners-state-panel-body">
+            {chow_body_html}
+          </div>
+        </section>
+      </div>"""
+
+    body = f"""
+    <div class="owners-hub owners-hub-index owners-state-index" data-owners-hub="national">
+      <nav class="owners-state-crumb" aria-label="Breadcrumb">
+        <a href="/">Home</a><span aria-hidden="true"> / </span>
+        <span>Ownership</span>
+      </nav>
+
+      <div class="owners-state-intro">
+        <header class="owners-state-hero">
+          <div class="owners-state-hero-copy">
+            <h1 class="owners-state-h1 owners-state-h1--balanced">Nursing home ownership &amp; control</h1>
+            <div class="owners-state-hero-rail" aria-hidden="true"></div>
+            <p class="owners-state-subtitle">{html.escape(subtitle)}</p>
+            {meta_html}
+          </div>
+        </header>
+
+        {search_module_html}
+      </div>
+
+      {panels_html}
+
+      <details class="owners-state-method">
+        <summary class="owners-state-method-trigger" aria-expanded="false">
+          <span class="owners-state-method-label">About this national ownership index</span>
+          <span class="owners-state-method-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="owners-state-method-body">
+          <p>
+            PBJ320 maps CMS nursing home ownership records to facilities nationwide.
+            Search by owner or organization name, or by 10-digit CMS associate ID/PAC. Owner profiles show
+            affiliated facilities and, when available, related Payroll-Based Journal staffing and CMS rating
+            context.
+          </p>
+          <p>
+            CMS ownership records may include legal owners, organizations, managing employees, and other reported
+            associations. They do not, by themselves, prove beneficial ownership, operational control, or care
+            quality.
+          </p>
+          <p>
+            Recent ownership changes are based on CMS change-of-ownership records across all states.
+            Staffing trends use the same public PBJ data used across PBJ320. Choose a state in the selector
+            to open that state's ownership index.
+          </p>
+        </div>
+      </details>
+      <div class="owners-state-desktop-sources">{method_sources_html}</div>
+      {sources_modal_html}
+    </div>
+    """
+    layout_meta = {
+        "page_title": page_title,
+        "meta_description": meta_description,
+        "canonical_path": "/owners",
+        "panel_state_code": "",
+    }
+    return body, layout_meta
+
+
 def render_state_owner_index_locked_body(state_name: str = "") -> str:
+    from ownership.state_owner_index import format_public_owner_states_links_html
+
     label = html.escape(state_name or "This state")
+    state_links = format_public_owner_states_links_html()
     return f"""
     <div class="owners-hub owners-state-index owners-state-index--locked">
       <h1>Ownership index not available</h1>
       <p class="owners-hub-lead">
         Ownership pages are currently available for
-        <a href="/owners/ny">New York nursing home ownership search</a>,
-        <a href="/owners/ct">Connecticut nursing home ownership search</a>, and
-        <a href="/owners/fl">Florida nursing home ownership search</a> only.
+        {state_links}.
         {label} does not have a published ownership index on PBJ320 yet.
       </p>
       <p class="owners-hub-aside">
-        <a href="/owners">Ownership indexes</a> ·
+        <a href="/owners">National ownership search</a> ·
         <a href="/">Facility search</a>
       </p>
     </div>

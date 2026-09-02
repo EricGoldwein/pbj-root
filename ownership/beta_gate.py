@@ -1,15 +1,15 @@
-"""Ownership / CHOW visibility: CT + NY + FL public launch, broader states for internal preview.
+"""Ownership / CHOW visibility: nationwide public launch (50 states + DC).
 
 Published externally (production default):
-  - State-page ownership blocks, provider ownership sections, and /owners/<pac> profiles
-    for facilities and organizations tied to CT, FL, NJ, or NY.
+  - State-page ownership blocks, provider ownership sections, /owners/<state> indexes,
+    and /owners/<pac> profiles for facilities tied to any U.S. state or D.C. in the roster.
 
 Internal preview (local dev or explicit env / admin key):
-  - Same UI for additional states (e.g. Minnesota) without treating them as published.
+  - Optional allowlist via PBJ_OWNERSHIP_PREVIEW_STATES for staged rollouts.
 
 Environment:
-  PBJ_OWNERSHIP_PREVIEW=1|all|on     — enable preview (all states with data when no list set)
-  PBJ_OWNERSHIP_PREVIEW_STATES=MN,WI — optional comma-separated USPS codes (still includes CT)
+  PBJ_OWNERSHIP_PREVIEW=1|all|on     — enable preview extras when allowlist set
+  PBJ_OWNERSHIP_PREVIEW_STATES=MN,WI — optional comma-separated USPS codes
 
 On non-Render hosts, app.py setdefaults PBJ_OWNERSHIP_PREVIEW=1 so local runs see all states.
 
@@ -20,9 +20,11 @@ from __future__ import annotations
 import os
 from typing import Any
 
-OWNERSHIP_PUBLIC_STATES = frozenset({"CT", "FL", "NJ", "NY"})
-# Back-compat alias (first public state)
-OWNERSHIP_BETA_STATE = "CT"
+from ownership.us_states import US_STATE_CODES
+
+OWNERSHIP_PUBLIC_STATES = US_STATE_CODES
+# Back-compat alias (first public state alphabetically in roster)
+OWNERSHIP_BETA_STATE = "AL"
 
 
 def normalize_state_code(state_code: str | None) -> str:
@@ -35,7 +37,7 @@ def _preview_env_enabled() -> bool:
 
 
 def _preview_state_allowlist() -> frozenset[str] | None:
-    """None means all states allowed when preview is on; empty frozenset means CT + env list only."""
+    """None means all states allowed when preview is on; empty frozenset means public list only."""
     raw = (os.environ.get("PBJ_OWNERSHIP_PREVIEW_STATES") or "").strip().upper()
     if not raw:
         return None

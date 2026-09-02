@@ -29,8 +29,12 @@ SAMPLE_CCNS = {
 def main() -> int:
     errors: list[str] = []
 
-    if not snf_owners_csv_path() and not SQLITE_DB.is_file():
-        errors.append("Missing SNF_All_Owners CSV and snf_owners_lookup.sqlite")
+    try:
+        csv_ok = snf_owners_csv_path().is_file()
+    except Exception:
+        csv_ok = False
+    if not csv_ok and not SQLITE_DB.is_file():
+        errors.append("Missing policy-selected SNF_All_Owners CSV and snf_owners_lookup.sqlite")
 
     combined = [p for p in provider_info_crosswalk_paths() if "combined" in p.name.lower()]
     if not combined:

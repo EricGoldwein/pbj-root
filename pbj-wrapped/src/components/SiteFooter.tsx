@@ -152,14 +152,14 @@ export const SiteFooter: React.FC = () => {
 
       <p className="footer-signoff">
         <span className="footer-signoff-line">
-          © {year},{' '}
+          © {year}{' '}
           <a
             href="https://www.320insight.com/"
             target="_blank"
             rel="noopener noreferrer"
             className="footer-signoff-brand"
           >
-            320 Consulting
+            320 Consulting LLC
           </a>
           {' · '}
           <a href="/terms" className="footer-signoff-link" style={signoffLinkStyle}>

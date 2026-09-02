@@ -137,16 +137,22 @@ def newest_provider_snapshot_path(base_dir: Path) -> Path | None:
 
 
 def _latest_affiliated_entity_month(base_dir):
-    """Month label for the newest SNF_All_Owners*.csv (same file as owner profiles)."""
-    del base_dir  # discovery uses repo ownership/ via owner_profile
+    """Month label for the policy-selected SNF_All_Owners*.csv (same file as owner profiles)."""
     try:
-        from ownership.owner_profile import snf_owners_release_month_year
-    except ImportError:
-        return None
-    ym = snf_owners_release_month_year()
-    if not ym:
-        return None
-    return _format_month_year(ym[0], ym[1])
+        from ownership.owner_profile import (
+            resolve_snf_owners_csv_path,
+            snf_owners_release_month_year,
+        )
+
+        path = resolve_snf_owners_csv_path(Path(base_dir))
+        ym = snf_owners_release_month_year(path)
+        if ym:
+            return _format_month_year(ym[0], ym[1])
+    except Exception:
+        pass
+    # Fail closed: do not fall back to newest-on-disk (filesystem recency must not
+    # override ownership_release_policy).
+    return None
 
 
 def get_latest_data_periods():
@@ -156,7 +162,7 @@ def get_latest_data_periods():
     
     Returns:
         dict: Dictionary containing:
-            - data_range: String range like '2017-2025' (from actual data)
+            - data_range: String range like '2017-2026' (from actual data)
             - quarter_count: Integer count of quarters (from actual data)
             - provider_info_latest: Latest provider info date (e.g., 'February 2026')
             - provider_info_previous: Previous provider info date (e.g., 'June 2025')
@@ -168,7 +174,7 @@ def get_latest_data_periods():
     base_dir = Path(__file__).resolve().parent.parent
     
     # Try to read from CSV files to get actual data range
-    data_range = '2017-2025'  # Default fallback
+    data_range = f'2017-{current_year}'  # Default fallback (calendar year, not a fixed end year)
     quarter_count = 33  # Default fallback
     
     try:

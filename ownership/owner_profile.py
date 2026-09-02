@@ -27,7 +27,6 @@ from ownership.owner_portfolio_metrics import _provider_info_csv_paths, provider
 
 _REPO = Path(__file__).resolve().parent.parent
 _OWNERSHIP_DIR = _REPO / "ownership"
-_SNF_OWNERS_GLOB = "SNF_All_Owners*.csv"
 _OWNERS_LOOKUP_DB = _OWNERSHIP_DIR / "snf_owners_lookup.sqlite"
 _ORG_INDEX_GZ = _OWNERSHIP_DIR / "snf_owners_org_index.json.gz"
 _CCN_ENROLLMENT_INDEX_GZ = _OWNERSHIP_DIR / "snf_owners_ccn_index.json.gz"
@@ -104,21 +103,23 @@ def _parse_snf_owners_filename(path: Path) -> tuple[int, int, int] | None:
     return None
 
 
+def resolve_snf_owners_csv_path(root: Path | None = None) -> Path:
+    """
+    Active SNF_All_Owners CSV from ``ownership_release_policy.json`` only.
+
+    Filesystem recency (filename date, mtime, glob order) must never override the
+    approved release. Missing/invalid policy or staged source raises
+    ``OwnershipReleasePolicyError`` (fail closed).
+    """
+    from ownership.ownership_release_policy import resolve_ownership_source_path
+
+    return resolve_ownership_source_path(root or _REPO, verify_checksum=False)
+
+
 @lru_cache(maxsize=1)
-def snf_owners_csv_path() -> Path | None:
-    """Newest SNF_All_Owners*.csv in ownership/ (by date in filename)."""
-    if not _OWNERSHIP_DIR.is_dir():
-        return None
-    candidates: list[tuple[tuple[int, int, int], Path]] = []
-    for path in _OWNERSHIP_DIR.glob(_SNF_OWNERS_GLOB):
-        if not path.is_file():
-            continue
-        key = _parse_snf_owners_filename(path)
-        if key:
-            candidates.append((key, path))
-    if not candidates:
-        return None
-    return sorted(candidates, reverse=True)[0][1]
+def snf_owners_csv_path() -> Path:
+    """Policy-selected SNF_All_Owners CSV for this repo (see resolve_snf_owners_csv_path)."""
+    return resolve_snf_owners_csv_path(_REPO)
 
 
 def snf_owners_release_month_year(path: Path | None = None) -> tuple[int, int] | None:

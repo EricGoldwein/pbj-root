@@ -64,6 +64,7 @@
                         <li><a href="#statistics">Screening</a></li>
                         <li><a href="#ein">EIN</a></li>
                         <li><a href="#sources">Sources</a></li>
+                        <li><a href="#maps">Maps</a></li>
                     </ul>
                 </div>
                 <div class="pbj-premium-toc-progress d-md-none" aria-hidden="true">
@@ -155,6 +156,12 @@
                     <h2 id="sources-heading" class="pbj-section-title">Data sources</h2>
                     <p class="small mb-2">Staffing metrics come from CMS <a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" target="_blank" rel="noopener">Payroll-Based Journal</a> (2017 onward). Provider Information (<a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" rel="noopener">4pq5-n9py</a>) supplies ratings, ownership, case-mix, and related fields. Rows are aligned to PBJ quarters using reported total staffing where both sources overlap; other fields may refresh on a different cadence—see <a href="/data-sources">PBJ ↔ Provider Information matching</a>.</p>
                     <p class="small mb-0">Employee-detail data: <a href="https://data.cms.gov/quality-of-care/payroll-based-journal-employee-detail-nursing-home-staffing" target="_blank" rel="noopener">CMS PBJ Employee Detail</a>.</p>
+                </section>
+
+                <section id="maps" class="pbj-section-panel mb-0 anchor-target" aria-labelledby="maps-heading">
+                    <h2 id="maps-heading" class="pbj-section-title">Geographic maps</h2>
+                    <p class="small mb-2">Public rankings maps are a presentation layer over the same CMS PBJ state and CMS Region aggregates used in tables. The free site currently draws state choropleths with D3/TopoJSON (not Mapbox). Maps do not change HPRD definitions. See <a href="/data-sources#maps">Data sources — Geographic maps</a> for stack, limitations, and why basemap vendors are not staffing data sources. Optional design context (not a data source): <a href="https://dev.to/mapbox/prompting-for-interactive-web-maps-in-2026-2872" target="_blank" rel="noopener">Prompting for interactive web maps in 2026</a>.</p>
+                    <p class="small mb-0">Facility coordinates used for any point maps come from CMS Provider Information latitude/longitude fields when present—not from live geocoding on dashboard load.</p>
                 </section>
 
                 <section class="pbj-cta-rail" aria-labelledby="methods-cta-heading">

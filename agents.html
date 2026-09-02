@@ -1,64 +1,642 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="pbj-insights-article">
 <head>
   <meta charset="utf-8">
-  <title>PBJ320 for AI agents | Machine-readable nursing home research</title>
+  <title>PBJ320 for agents | Connect an AI research assistant</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Connect AI assistants to PBJ320 structured nursing home staffing and ownership data from CMS sources.">
+  <meta name="description" content="Connect an AI agent to PBJ320 to research nursing home staffing over time, trace CMS ownership, and inspect the evidence behind a finding.">
   <link rel="canonical" href="https://www.pbj320.com/agents">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://www.pbj320.com/agents">
+  <meta property="og:title" content="PBJ320 for agents | Connect an AI research assistant">
+  <meta property="og:description" content="Connect an AI agent to PBJ320 to research nursing home staffing over time, trace CMS ownership, and inspect the evidence behind a finding.">
+  <meta property="og:image" content="https://www.pbj320.com/og-image-1200x630.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="PBJ320">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="PBJ320 for agents | Connect an AI research assistant">
+  <meta name="twitter:description" content="Connect an AI agent to PBJ320 to research nursing home staffing over time, trace CMS ownership, and inspect the evidence behind a finding.">
+  <meta name="twitter:image" content="https://www.pbj320.com/og-image-1200x630.png">
+  <meta name="theme-color" content="#f6f7f9">
   <link rel="icon" type="image/png" href="/pbj_favicon.png">
-  <link rel="stylesheet" href="/public-trust.css?v=1">
+  <link rel="stylesheet" href="/public-trust.css">
+  <link rel="stylesheet" href="/insights-theme.css?v=56">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "PBJ320 for agents",
+    "url": "https://www.pbj320.com/agents",
+    "description": "Connect an AI agent to PBJ320 to research nursing home staffing over time, trace CMS ownership, and inspect the evidence behind a finding.",
+    "isPartOf": {
+      "@type": "WebSite",
+      "name": "PBJ320",
+      "url": "https://www.pbj320.com/"
+    }
+  }
+  </script>
+  <style>
+    html { overflow-x: hidden; }
+    body.pbj-agents .nav-toggle {
+      background: none;
+      border: none;
+      padding: 0;
+    }
+    html.pbj-insights-article body.pbj-agents {
+      --agents-code: #0f172a;
+      --agents-code-text: #e2e8f0;
+      --agents-rule: #cbd5e1;
+      background: var(--pbj-canvas);
+      color: var(--pbj-text);
+    }
+    body.pbj-agents a { color: var(--pbj-link); }
+    body.pbj-agents a:hover { color: var(--pbj-link-hover); }
+    body.pbj-agents .content {
+      max-width: var(--insights-content-max, 720px);
+      padding: 1.5rem var(--insights-gutter, clamp(1rem, 3vw, 2rem)) 2.75rem;
+    }
+    body.pbj-agents .agents-eyebrow {
+      display: inline-block;
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--pbj-text-muted);
+      font-weight: 700;
+      margin: 0 0 0.55rem;
+      background: var(--pbj-pill-bg);
+      border: 1px solid var(--pbj-pill-ring);
+      padding: 0.22rem 0.5rem;
+      border-radius: 6px;
+    }
+    .agents-hero {
+      margin: 0;
+      padding: 0 0 0.7rem;
+      border-bottom: 1px solid var(--agents-rule);
+    }
+    .agents-hero h1 {
+      font-family: "Vollkorn", Georgia, "Times New Roman", serif;
+      font-size: clamp(1.65rem, 3.5vw, 2.1rem);
+      font-weight: 400;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      color: var(--pbj-heading);
+      margin: 0 0 0.7rem;
+    }
+    body.pbj-agents .agents-lede {
+      font-size: 1.05rem;
+      line-height: 1.68;
+      color: var(--pbj-text);
+      margin: 0 0 0.7rem;
+    }
+    .agents-lede:last-child { margin-bottom: 0; }
+    body.pbj-agents h2 {
+      font-family: "Vollkorn", Georgia, "Times New Roman", serif;
+      font-size: clamp(1.15rem, 2.5vw, 1.3rem);
+      color: var(--pbj-heading);
+      margin: 1.15rem 0 0.35rem;
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+    }
+    body.pbj-agents h3 {
+      font-family: "DM Sans", system-ui, sans-serif;
+      font-size: 0.92rem;
+      color: var(--pbj-heading);
+      margin: 0.55rem 0 0.1rem;
+      font-weight: 700;
+    }
+    body.pbj-agents p,
+    body.pbj-agents li {
+      color: var(--pbj-text);
+      font-size: 1.02rem;
+      line-height: 1.6;
+    }
+    body.pbj-agents p { margin: 0 0 0.4rem; }
+    body.pbj-agents code,
+    .tool-name {
+      font-family: "DM Mono", ui-monospace, Menlo, Consolas, monospace;
+      font-size: 0.88em;
+    }
+    body.pbj-agents code {
+      background: var(--pbj-surface-muted);
+      color: var(--pbj-heading);
+      border: 1px solid var(--agents-rule);
+      border-radius: 4px;
+      padding: 0.08em 0.32em;
+    }
+    body.pbj-agents .quiet {
+      font-size: 0.88rem;
+      color: var(--pbj-text-muted);
+      margin: 0.35rem 0 0;
+    }
+    body.pbj-agents .agents-try h2 { margin-top: 0.85rem; }
+    body.pbj-agents .agents-try > p { margin-bottom: 0.3rem; }
+    .try-block,
+    .connect-panel {
+      margin: 0.25rem 0 0;
+      border-radius: 10px;
+    }
+    body.pbj-agents .connect-panel { margin-top: 0.7rem; }
+    .try-block {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      background: #fff;
+      border: 1px solid var(--agents-rule);
+      padding: 0.6rem 0.7rem;
+    }
+    .try-block p {
+      margin: 0;
+      flex: 1;
+      font-size: 0.98rem;
+      line-height: 1.5;
+      color: var(--pbj-heading);
+    }
+    .connect-panel {
+      background: #fff;
+      border: 1px solid var(--agents-rule);
+      padding: 0.7rem 0.95rem 0.85rem;
+    }
+    body.pbj-agents .connect-panel > h2 {
+      margin: 0 0 0.3rem;
+    }
+    .endpoint-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+      margin: 0.2rem 0 0.15rem;
+    }
+    body.pbj-agents .endpoint-row code {
+      background: var(--agents-code);
+      border-color: #1e293b;
+      padding: 0.28rem 0.5rem;
+      border-radius: 6px;
+      color: var(--agents-code-text);
+      overflow-wrap: anywhere;
+    }
+    .meta-line {
+      font-size: 0.76rem;
+      color: var(--pbj-text-muted);
+      margin: 0 0 0.5rem;
+      font-family: "DM Mono", ui-monospace, Menlo, Consolas, monospace;
+    }
+    .copy-block {
+      position: relative;
+      margin: 0.25rem 0 0.55rem;
+      background: var(--agents-code);
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      overflow: hidden;
+      display: inline-block;
+      max-width: 100%;
+      vertical-align: top;
+    }
+    .copy-block--wide { display: block; }
+    .copy-block pre {
+      margin: 0;
+      padding: 0.6rem 3.6rem 0.6rem 0.8rem;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    body.pbj-agents .copy-block code {
+      display: block;
+      background: transparent;
+      border: 0;
+      padding: 0;
+      color: var(--agents-code-text);
+      font-size: 0.8rem;
+      line-height: 1.45;
+      white-space: pre;
+    }
+    .copy-btn {
+      background: #fff;
+      color: #334155;
+      border: 1px solid var(--agents-rule);
+      border-radius: 6px;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      line-height: 1.2;
+      flex-shrink: 0;
+      touch-action: manipulation;
+    }
+    .copy-block .copy-btn {
+      position: absolute;
+      top: 0.35rem;
+      right: 0.35rem;
+      z-index: 1;
+      background: #1e293b;
+      color: #e2e8f0;
+      border-color: #475569;
+    }
+    .copy-block .copy-btn:hover {
+      background: #334155;
+      color: #fff;
+    }
+    .copy-btn:hover { background: #f8fafc; color: var(--pbj-heading); }
+    .copy-btn:focus-visible {
+      outline: 2px solid var(--pbj-accent);
+      outline-offset: 2px;
+    }
+    .copy-btn.is-copied {
+      background: #14532d;
+      border-color: #22c55e;
+      color: #ecfdf5;
+    }
+    .copy-block .copy-btn.is-copied {
+      background: #14532d;
+      border-color: #22c55e;
+      color: #ecfdf5;
+    }
+    .more-examples {
+      margin: 0.25rem 0 0;
+      color: var(--pbj-text-muted);
+      font-size: 0.86rem;
+    }
+    .more-examples summary {
+      cursor: pointer;
+      width: fit-content;
+      color: var(--pbj-text-muted);
+      list-style: none;
+    }
+    .more-examples summary::-webkit-details-marker { display: none; }
+    .more-examples summary::before {
+      content: "\203A\00a0";
+      display: inline-block;
+      transition: transform 0.12s ease;
+    }
+    .more-examples[open] summary::before { transform: rotate(90deg); }
+    .more-examples ul {
+      list-style: none;
+      margin: 0.2rem 0 0;
+      padding: 0;
+    }
+    .more-examples li { margin: 0; padding: 0; }
+    .example-q {
+      display: block;
+      width: 100%;
+      background: none;
+      border: none;
+      padding: 0.18rem 0;
+      margin: 0;
+      color: #334155;
+      font: inherit;
+      font-size: 0.86rem;
+      line-height: 1.4;
+      text-align: left;
+      cursor: pointer;
+    }
+    .example-q:hover,
+    .example-q:focus-visible { color: var(--pbj-heading); }
+    .example-q:focus-visible {
+      outline: 2px solid var(--pbj-accent);
+      outline-offset: 2px;
+    }
+    .client-row { margin: 0.05rem 0 0.4rem; }
+    .client-row h3 { margin-bottom: 0.05rem; }
+    .client-row p { margin: 0; font-size: 0.9rem; color: var(--pbj-text-muted); }
+    .client-row .path {
+      display: block;
+      font-family: "DM Mono", ui-monospace, Menlo, Consolas, monospace;
+      font-size: 0.8rem;
+      color: #334155;
+      margin: 0 0 0.1rem;
+    }
+    body.pbj-agents .tool-list { margin: 0; padding: 0; list-style: none; }
+    body.pbj-agents .tool-list li {
+      margin: 0;
+      padding: 0.4rem 0;
+      border-top: 1px solid var(--agents-rule);
+    }
+    body.pbj-agents .tool-list li:last-child { border-bottom: 1px solid var(--agents-rule); }
+    .tool-list h3 { margin: 0; }
+    body.pbj-agents .tool-list p { margin: 0.1rem 0 0; color: var(--pbj-text-muted); font-size: 0.9rem; }
+    body.pbj-agents .note {
+      font-size: 0.86rem;
+      color: var(--pbj-text-muted);
+      margin: 0.45rem 0 0;
+    }
+    .source-list {
+      margin: 0.15rem 0 0.5rem 1.1rem;
+      font-size: 0.92rem;
+    }
+    .provenance {
+      font-size: 0.86rem;
+      color: var(--pbj-text-muted);
+      margin: 0;
+      line-height: 1.5;
+    }
+    .guard-list { margin: 0.15rem 0 0 1.1rem; }
+    .machine-list { list-style: none; margin: 0.15rem 0 0; padding: 0; }
+    .machine-list li {
+      margin: 0;
+      padding: 0.32rem 0;
+      border-top: 1px solid var(--agents-rule);
+      display: grid;
+      grid-template-columns: 7.2rem 1fr;
+      gap: 0.25rem 0.75rem;
+      align-items: baseline;
+    }
+    .machine-list li:last-child { border-bottom: 1px solid var(--agents-rule); }
+    .machine-list strong { font-size: 0.82rem; color: var(--pbj-heading); }
+    body.pbj-agents .machine-list p { margin: 0.05rem 0 0; color: var(--pbj-text-muted); font-size: 0.82rem; }
+    body.pbj-agents .machine-list code {
+      overflow-wrap: anywhere;
+      background: transparent;
+      border: 0;
+      padding: 0;
+    }
+    .machine-mcp {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+    body.pbj-agents .machine-mcp code {
+      background: var(--agents-code);
+      border: 1px solid #1e293b;
+      color: var(--agents-code-text);
+      padding: 0.12em 0.4em;
+    }
+    @media (max-width: 768px) {
+      body.pbj-agents .content { padding: 1.15rem 1rem 2.25rem; }
+    }
+    @media (max-width: 640px) {
+      .copy-btn {
+        min-height: 2.25rem;
+        min-width: 2.75rem;
+        padding: 0.4rem 0.7rem;
+        font-size: 0.8rem;
+      }
+      .try-block { flex-wrap: wrap; }
+      .try-block .copy-btn { margin-left: auto; }
+      .endpoint-row { align-items: stretch; }
+      body.pbj-agents .endpoint-row code { flex: 1 1 auto; }
+      .connect-panel { padding: 0.6rem 0.75rem 0.75rem; }
+      .more-examples summary { min-height: 2rem; padding: 0.15rem 0; }
+      .machine-list li { grid-template-columns: 1fr; }
+      .copy-block { display: block; }
+      .copy-block pre { padding-right: 0.8rem; padding-top: 2.1rem; }
+      .copy-block code {
+        font-size: 0.74rem;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+    }
+  </style>
 </head>
-<body class="pbj-public-trust-page">
-  <div class="container">
-    <header class="hero">
-      <h1>PBJ320 for AI agents</h1>
-      <p class="lead">PBJ320 makes federal nursing-home staffing and ownership data available in structured form for research assistants and AI agents.</p>
+<body class="pbj-agents">
+  <nav class="navbar" aria-label="Main">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <a href="/">
+          <img src="/pbj_favicon.png" alt="PBJ320" width="32" height="32">
+          <span><span>PBJ</span><span>320</span></span>
+        </a>
+      </div>
+      <div class="nav-menu" id="navMenu" data-pbj-nav-version="owners-v2">
+        <a href="/about" class="nav-link">About</a>
+        <a href="/report" class="nav-link">Report</a>
+        <a href="/insights" class="nav-link">Insights</a>
+        <a href="/owners" class="nav-link">Owners</a>
+        <a href="/phoebe" class="nav-link">PBJ Explained</a>
+        <a href="/premium" class="nav-link">Premium</a>
+      </div>
+      <button type="button" class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navMenu">
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+      </button>
+    </div>
+  </nav>
+
+  <main class="content">
+    <header class="agents-hero">
+      <p class="agents-eyebrow">PBJ320 &middot; For AI agents</p>
+      <h1>PBJ320 for agents.</h1>
+      <p class="agents-lede">PBJ320 makes public nursing home staffing and ownership data easier to research across time. Connect an AI agent to search facilities, examine staffing, trace ownership, compare providers, and inspect the CMS sources behind a finding.</p>
+      <p class="agents-lede">The underlying data is public. PBJ320&rsquo;s job is to normalize it, connect it, preserve its history, and make the methodology and evidence inspectable.</p>
     </header>
 
-    <section>
-      <h2>Connect</h2>
-      <p>Public read-only MCP endpoint:</p>
-      <pre class="code-block"><code>https://www.pbj320.com/mcp</code></pre>
-      <p>Machine-readable site guide: <a href="/llms.txt">/llms.txt</a></p>
+    <section class="agents-try" aria-labelledby="try-heading">
+      <h2 id="try-heading">Try it</h2>
+      <p>Once connected, ask PBJ320 a research question in plain English.</p>
+      <div class="try-block">
+        <button type="button" class="copy-btn" data-copy-target="try-prompt" aria-label="Copy example">Copy</button>
+        <p id="try-prompt">What&rsquo;s the latest staffing at Seagate in Brooklyn?</p>
+      </div>
+      <details class="more-examples">
+        <summary>More examples</summary>
+        <ul>
+          <li><button type="button" class="example-q">Who owns Seagate?</button></li>
+          <li><button type="button" class="example-q">Find nursing homes in Brooklyn.</button></li>
+          <li><button type="button" class="example-q">How was Seagate staffed on January 15?</button></li>
+        </ul>
+      </details>
     </section>
 
-    <section>
-      <h2>What you can ask</h2>
-      <ul>
-        <li>Find nursing homes in Ohio by name or CCN.</li>
-        <li>Summarize latest quarterly staffing for CCN <code>366395</code>.</li>
-        <li>Show facilities associated with a CMS owner PAC.</li>
-        <li>Compare two or more facilities by explicit CCN list.</li>
-        <li>Retrieve CMS PBJ daily evidence for a specific date and metric.</li>
+    <section class="connect-panel" aria-labelledby="connect-heading">
+      <h2 id="connect-heading">Connect in about 30 seconds</h2>
+      <div class="endpoint-row">
+        <code id="cfg-endpoint">https://www.pbj320.com/mcp</code>
+        <button type="button" class="copy-btn" data-copy-target="cfg-endpoint" aria-label="Copy MCP endpoint">Copy</button>
+      </div>
+      <p class="meta-line">Read-only &middot; Streamable HTTP</p>
+      <div class="copy-block">
+        <button type="button" class="copy-btn" data-copy-target="cfg-generic" aria-label="Copy MCP configuration">Copy</button>
+        <pre><code id="cfg-generic">{
+  "mcpServers": {
+    "pbj320": {
+      "url": "https://www.pbj320.com/mcp"
+    }
+  }
+}</code></pre>
+      </div>
+
+      <div class="client-row">
+        <h3>Cursor</h3>
+        <span class="path">Settings &rarr; Tools &amp; MCP &rarr; Add MCP server</span>
+        <p>Use the config above in <code>.cursor/mcp.json</code>, or add the endpoint directly.</p>
+      </div>
+      <div class="client-row">
+        <h3>Claude Desktop</h3>
+        <span class="path">Settings &rarr; Connectors &rarr; Add custom connector</span>
+        <p>Paste the PBJ320 MCP URL above. Free plans are limited to one custom connector.</p>
+      </div>
+      <div class="client-row">
+        <h3>Claude Code</h3>
+        <div class="copy-block copy-block--wide">
+          <button type="button" class="copy-btn" data-copy-target="cfg-claude-code" aria-label="Copy Claude Code command">Copy</button>
+          <pre><code id="cfg-claude-code">claude mcp add --transport http pbj320 https://www.pbj320.com/mcp</code></pre>
+        </div>
+      </div>
+      <div class="client-row">
+        <h3>Other clients</h3>
+        <p>Any MCP client that supports remote Streamable HTTP can use the endpoint above.</p>
+      </div>
+      <p class="quiet">Client support varies by platform; the instructions above are limited to configurations verified for PBJ320.</p>
+    </section>
+
+    <section aria-labelledby="tools-heading">
+      <h2 id="tools-heading">The tools</h2>
+      <p>Six read-only tools. Names match <code>tools/list</code>.</p>
+      <ul class="tool-list">
+        <li>
+          <h3 class="tool-name">search_facilities</h3>
+          <p>Find nursing homes by name, CCN, city, state, ZIP, or owner PAC.</p>
+        </li>
+        <li>
+          <h3 class="tool-name">get_facility</h3>
+          <p>Latest quarterly staffing, CMS provider context, state percentiles, and the canonical facility page.</p>
+        </li>
+        <li>
+          <h3 class="tool-name">compare_facilities</h3>
+          <p>Compare an explicit list of CCNs using the same quarterly metrics and state-percentile context.</p>
+        </li>
+        <li>
+          <h3 class="tool-name">search_owners</h3>
+          <p>Search CMS SNF ownership records by name or 10-digit PAC.</p>
+        </li>
+        <li>
+          <h3 class="tool-name">get_owner_portfolio</h3>
+          <p>Facilities attributed to a CMS associate/PAC under PBJ320&rsquo;s ownership methodology.</p>
+        </li>
+        <li>
+          <h3 class="tool-name">get_staffing_evidence</h3>
+          <p>CMS inputs and PBJ320-derived HPRD for one facility, one date, and one metric.</p>
+        </li>
+      </ul>
+      <p class="note">PBJ320&rsquo;s public facility pages preserve quarterly staffing history from 2017 forward. The current MCP uses the latest loaded quarter for facility lookup and comparison; the canonical page provides the longer historical view.</p>
+    </section>
+
+    <section aria-labelledby="sources-heading">
+      <h2 id="sources-heading">Sources and methodology</h2>
+      <p>PBJ320 relies primarily on federal CMS data. Responses identify the source and reporting period. When a value is calculated by PBJ320 rather than published directly by CMS, the response says so and links to methodology.</p>
+      <p><strong>Primary CMS sources</strong></p>
+      <ul class="source-list">
+        <li>Payroll-Based Journal</li>
+        <li>Provider Information</li>
+        <li>SNF All Owners</li>
+      </ul>
+      <p class="provenance"><code>Source</code> &mdash; CMS Payroll-Based Journal<br>
+      <code>Period</code> &mdash; shown with each result<br>
+      <code>Analysis</code> &mdash; CMS-published or PBJ320-derived<br>
+      <code>Methods</code> &mdash; <a href="/data-sources#methodology">Methodology</a></p>
+    </section>
+
+    <section aria-labelledby="research-heading">
+      <h2 id="research-heading">Designed for research, not bulk extraction</h2>
+      <p>PBJ320&rsquo;s MCP is designed to answer research questions, not expose the normalized corpus as a bulk-download API.</p>
+      <ul class="guard-list">
+        <li>bounded searches</li>
+        <li>no arbitrary SQL/database browsing</li>
+        <li>daily evidence requires one CCN + date + metric; no date-range exports</li>
       </ul>
     </section>
 
-    <section>
-      <h2>Sources</h2>
-      <p>PBJ320 responses identify the underlying CMS source, reporting period, and PBJ320 methodology when a value is derived.</p>
-      <p><strong>Source:</strong> CMS Payroll-Based Journal<br>
-         <strong>Period:</strong> shown per response (quarter or work date)<br>
-         <strong>Analysis:</strong> PBJ320 (when derived)<br>
-         <strong>Evidence:</strong> <code>get_staffing_evidence</code> tool for audit-ready daily provenance</p>
-    </section>
-
-    <section>
-      <h2>Methodology</h2>
-      <p>Full definitions and dataset notes: <a href="/data-sources">Data sources &amp; methodology</a>.</p>
-    </section>
-
-    <section>
-      <h2>Limitations</h2>
-      <ul>
-        <li>Read-only research API; not a bulk data export service.</li>
-        <li>Staffing quarters and ownership releases follow PBJ320 production release policy.</li>
-        <li>Daily evidence covers bundled PBJ quarters; Employee Detail is not included in MCP v0.</li>
-        <li>No geo-radius search or invented peer cohorts—use explicit CCNs or documented state percentiles.</li>
+    <section aria-labelledby="machine-heading">
+      <h2 id="machine-heading">Machine-readable PBJ320</h2>
+      <ul class="machine-list">
+        <li>
+          <strong>MCP</strong>
+          <div>
+            <div class="machine-mcp">
+              <code id="machine-mcp">https://www.pbj320.com/mcp</code>
+              <button type="button" class="copy-btn" data-copy-target="machine-mcp" aria-label="Copy MCP URL">Copy</button>
+            </div>
+            <p>Read-only Streamable HTTP.</p>
+          </div>
+        </li>
+        <li>
+          <strong>AI discovery</strong>
+          <div>
+            <a href="/llms.txt"><code>/llms.txt</code></a>
+            <p>Plain-text site guide.</p>
+          </div>
+        </li>
+        <li>
+          <strong>Facility JSON</strong>
+          <div>
+            <code>/api/public/provider/{ccn}.json</code>
+            <p>Latest-quarter facility payload.</p>
+          </div>
+        </li>
+        <li>
+          <strong>Owner JSON</strong>
+          <div>
+            <code>/api/public/owners/{pac}.json</code>
+            <p>Portfolio for a 10-digit PAC.</p>
+          </div>
+        </li>
+        <li>
+          <strong>Sitemap</strong>
+          <div>
+            <a href="/sitemap.xml"><code>/sitemap.xml</code></a>
+            <p>Canonical public URLs.</p>
+          </div>
+        </li>
       </ul>
     </section>
+  </main>
 
-    <p class="footer-links"><a href="/">Home</a> · <a href="/data-sources">Data sources</a> · <a href="/contact">Contact</a></p>
-  </div>
+  <footer class="footer" id="site-footer"></footer>
+  <script src="/pbj-site-universal.js?v=76"></script>
+  <script>
+    (function () {
+      function fallbackCopy(text) {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        document.body.removeChild(ta);
+        return ok;
+      }
+      function copyText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(text);
+        }
+        return new Promise(function (resolve, reject) {
+          if (fallbackCopy(text)) resolve();
+          else reject(new Error('copy failed'));
+        });
+      }
+      function markCopied(btn) {
+        var original = btn.getAttribute('data-label') || btn.textContent;
+        btn.setAttribute('data-label', original);
+        btn.textContent = 'Copied';
+        btn.classList.add('is-copied');
+        window.setTimeout(function () {
+          btn.textContent = original;
+          btn.classList.remove('is-copied');
+        }, 1800);
+      }
+      document.addEventListener('click', function (e) {
+        var example = e.target.closest('.example-q');
+        if (example) {
+          var prompt = document.getElementById('try-prompt');
+          if (prompt) prompt.textContent = (example.textContent || '').trim();
+          return;
+        }
+        var btn = e.target.closest('.copy-btn');
+        if (!btn) return;
+        var id = btn.getAttribute('data-copy-target');
+        var el = id ? document.getElementById(id) : null;
+        if (!el) return;
+        var text = (el.textContent || '').replace(/^\uFEFF/, '');
+        copyText(text).then(function () { markCopied(btn); }).catch(function () {
+          if (fallbackCopy(text)) markCopied(btn);
+        });
+      });
+    })();
+  </script>
 </body>
 </html>

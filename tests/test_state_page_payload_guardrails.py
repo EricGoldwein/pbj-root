@@ -5,9 +5,9 @@ import re
 import unittest
 from unittest.mock import patch
 
-# Targets after CHOW lazy-detail SSR (initial_visible rows only embed panels).
+# Targets after Explore hub + CHOW lazy-detail SSR (initial_visible rows only embed panels).
 NY_MAX_HTML_BYTES = 480_000
-TX_MAX_HTML_BYTES = 275_000
+TX_MAX_HTML_BYTES = 340_000
 MAX_CHOW_DETAIL_STORES_NY = 12
 MAX_DOM_NODES_APPROX = 4_500
 

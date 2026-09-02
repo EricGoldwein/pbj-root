@@ -13,8 +13,7 @@ _FEC_HELP_BODY = (
     "When CMS lists individual vs organization, that type filters results.\n\n"
     "Similar names can appear in FEC data—open each filing on FEC.gov before treating "
     "a row as this person or entity.\n\n"
-    "No rows here does not prove zero lifetime contributions. "
-    "Use the full political contributions search at /owner for broader name experiments."
+    "No rows here does not prove zero lifetime contributions."
 )
 
 

@@ -34,6 +34,7 @@
     '<a href="/premium" style="' + FOOTER_LINK_STYLE + '">Premium</a> · ' +
     '<a href="/press" style="' + FOOTER_LINK_STYLE + '">Press</a> · ' +
     '<a href="/data-sources" style="' + FOOTER_LINK_STYLE + '">Sources</a> · ' +
+    '<a href="/agents" style="' + FOOTER_LINK_STYLE + '">Agents</a> · ' +
     '<a href="#" data-pbj-corrections-open style="' + FOOTER_LINK_STYLE + '">Corrections</a> · ' +
     '<a href="#" data-pbj-subscribe-open style="' + FOOTER_LINK_STYLE + '">Subscribe</a>' +
     '</p>';

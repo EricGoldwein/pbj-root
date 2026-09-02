@@ -872,12 +872,14 @@
           ctx.restore();
           
            // Add dynamic title based on selected state
+           // Calculate end year from quarters array
+           const endYear = quarters[quarters.length - 1].split(' ')[1];
            let titleText;
            if (selectedState === 'USA') {
-             titleText = 'USA Nursing Home Staffing (2017-2026)';
+             titleText = `USA Nursing Home Staffing (2017-${endYear})`;
            } else {
              const stateName = Object.keys(stateAbbreviations).find(name => stateAbbreviations[name] === selectedState);
-             titleText = `${stateName} Nursing Home Staffing (2017-2026)`;
+             titleText = `${stateName} Nursing Home Staffing (2017-${endYear})`;
            }
            
            ctx.fillStyle = 'rgba(255,255,255,0.6)';

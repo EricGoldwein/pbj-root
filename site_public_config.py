@@ -349,7 +349,7 @@ def sitemap_loc_is_allowed(loc: str, robots_disallow_prefixes: set[str] | None =
 PUBLIC_CONTACT_EMAIL = (os.environ.get('PBJ_PUBLIC_CONTACT_EMAIL') or 'eric@320insight.com').strip()
 
 # Bump when pbj-site-universal.js changes (footer, Premium nav, shell styles).
-PBJ_SITE_UNIVERSAL_JS_VERSION = '76'
+PBJ_SITE_UNIVERSAL_JS_VERSION = '77'
 
 # Bump when public-search.js changes (global header search overlay).
 PBJ_PUBLIC_SEARCH_JS_VERSION = '4'
@@ -392,6 +392,7 @@ SITEMAP_TRUST_PAGES: tuple[tuple[str, str, str], ...] = (
     ('/contact', '0.7', 'monthly'),
     ('/corrections', '0.6', 'monthly'),
     ('/data-sources', '0.7', 'monthly'),
+    ('/agents', '0.7', 'monthly'),
 )
 
 def build_llms_txt(origin: str | None = None) -> str:
@@ -422,8 +423,8 @@ def build_llms_txt(origin: str | None = None) -> str:
 
 ## Machine-readable interfaces
 
-- MCP (read-only research tools): {base}/mcp
-- Agent overview: {base}/agents
+- MCP (read-only research tools, Streamable HTTP JSON-RPC at /mcp — no SSE): {base}/mcp
+- Human connection guide: {base}/agents
 - Site guide (this file): {base}/llms.txt
 - Facility JSON: {base}/api/public/provider/{{ccn}}.json
 - Owner JSON: {base}/api/public/owners/{{pac}}.json

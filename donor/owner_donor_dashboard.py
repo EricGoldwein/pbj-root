@@ -89,7 +89,6 @@ app = Flask(__name__, template_folder='templates')
 # Data paths
 BASE_DIR = Path(__file__).parent.parent
 OWNERS_DB = BASE_DIR / "donor" / "output" / "owners_database.csv"
-OWNERSHIP_RAW = BASE_DIR / "ownership" / "SNF_All_Owners_May_2026.csv"  # fallback; see _get_latest_ownership_raw_path
 OWNERSHIP_NORM = BASE_DIR / "donor" / "output" / "ownership_normalized.csv"
 PROVIDER_INFO = BASE_DIR / "provider_info_combined.csv"
 PROVIDER_INFO_LATEST = BASE_DIR / "provider_info" / "NH_ProviderInfo_Mar2026.csv"  # fallback; see _get_latest_provider_info_path
@@ -130,16 +129,23 @@ def _get_latest_provider_info_path() -> tuple[Path, None]:
 
 
 def _get_latest_ownership_raw_path() -> tuple[Path, None]:
-    """Newest SNF_All_Owners*.csv (same resolver as /owners profiles)."""
-    try:
-        from ownership.owner_profile import snf_owners_csv_path
+    """Policy-selected SNF_All_Owners*.csv (same resolver as /owners profiles)."""
+    from ownership.owner_profile import snf_owners_csv_path
+    from ownership.ownership_release_policy import OwnershipReleasePolicyError
 
+    try:
         path = snf_owners_csv_path()
-        if path and path.is_file():
-            return path, None
-    except Exception:
-        pass
-    return OWNERSHIP_RAW, None
+    except OwnershipReleasePolicyError:
+        raise
+    except Exception as exc:
+        raise OwnershipReleasePolicyError(
+            f"Failed to resolve policy-selected ownership source: {exc}"
+        ) from exc
+    if not path.is_file():
+        raise OwnershipReleasePolicyError(
+            f"Policy-selected ownership source missing: {path}"
+        )
+    return path, None
 
 
 def ensure_data_loaded() -> None:

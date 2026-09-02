@@ -16,11 +16,30 @@ def _match_query(value: str, q: str) -> bool:
     return q.lower() in (value or '').lower()
 
 
+def _is_digit_only_query(q: str) -> bool:
+    return bool(q) and q.isdigit()
+
+
+def _ccn_match_score(ccn: str, q: str) -> int:
+    """Mirror public-search.js ccnMatchScore — verified from: public-search.js."""
+    c = (ccn or '').lower()
+    query = (q or '').strip().lower()
+    if not c or not query:
+        return 0
+    if c == query:
+        return 200
+    if c.startswith(query):
+        return 160
+    if _is_digit_only_query(query):
+        return 0
+    if query in c:
+        return 40
+    return 0
+
+
 def facility_base_score(row: dict, q: str) -> int:
     """Mirror public-search.js facilityBaseScore — verified from: public-search.js."""
-    score = 0
-    if _match_query(str(row.get('c') or ''), q):
-        score += 140
+    score = _ccn_match_score(str(row.get('c') or ''), q)
     if _match_query(str(row.get('n') or ''), q):
         score += 100
     if _match_query(str(row.get('y') or ''), q):
@@ -101,6 +120,25 @@ def test_fa_on_ny_page_includes_non_ny_matches():
     assert sum(1 for r in results if r.get('s') == 'NY') <= MAX_BOOST_STATE_IN_RESULTS
 
 
-def test_ccn_partial_match_scores_highest():
+def test_ccn_prefix_match_scores_highest():
     row = {'n': 'Example', 'c': '335513', 'y': 'NYC', 's': 'NY'}
-    assert facility_base_score(row, '3355') == 140
+    assert facility_base_score(row, '3355') == 160
+
+
+def test_ccn_exact_beats_prefix():
+    row = {'n': 'Example', 'c': '335513', 'y': 'NYC', 's': 'NY'}
+    assert facility_base_score(row, '335513') == 200
+
+
+def test_digit_query_ignores_mid_string_ccn():
+    mid = {'n': 'Mid Hit', 'c': '335655', 'y': 'Brooklyn', 's': 'NY'}
+    prefix = {'n': 'Prefix Hit', 'c': '655000', 'y': 'Austin', 's': 'TX'}
+    assert facility_base_score(mid, '655') == 0
+    assert facility_base_score(prefix, '655') == 160
+
+
+def test_655_ranks_prefix_ccn_first():
+    results = top_facilities('655', None)
+    assert results, 'expected at least one CCN prefix match for 655'
+    assert str(results[0].get('c') or '').startswith('655')
+    assert all(str(r.get('c') or '').startswith('655') for r in results)

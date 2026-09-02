@@ -6,7 +6,7 @@
 
 | Item | Detail |
 |------|--------|
-| Commit | `85a85cd` — `Add portfolio folder passport and archive Tier-3 notes` |
+| Commits (local, not pushed) | `85a85cd` passport/archive · `f773a10` this deferral note |
 | Why deferred | Docs/rules only (no route/behavior change), but a push to `master` may still trigger a Render redeploy |
 | Safe to include next deploy | Yes — ship with the next real site update |
 

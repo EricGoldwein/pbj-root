@@ -58,10 +58,20 @@ def render_facility_sources_footer(
     csv_export_html: str = '',
 ) -> str:
     """Facility page: PBJ quarter + CMS Provider Info + Care Compare (one footer line)."""
-    _ = include_chow, include_macpac, pbj_quarter_display
+    _ = include_chow, include_macpac
+    try:
+        from public_source_vintage import source_vintage_label
+
+        pbj_label = (pbj_quarter_display or '').strip() or source_vintage_label('cms.pbj_nurse_staffing')
+        pi_label = source_vintage_label('cms.provider_info')
+    except Exception:
+        pbj_label = (pbj_quarter_display or '').strip()
+        pi_label = ''
+    pbj_link_label = f'CMS PBJ ({pbj_label})' if pbj_label and pbj_label != '—' else 'CMS PBJ'
+    pi_link_label = f'CMS Provider Info ({pi_label})' if pi_label and pi_label != '—' else 'CMS Provider Info'
     line_parts = [
-        f'<span class="pbj-sources-item">{_ext_link(CMS_PBJ_DAILY_URL, "CMS PBJ")}</span>',
-        f'<span class="pbj-sources-item">{_ext_link(CMS_PROVIDER_INFO_URL, "CMS Provider Info")}</span>',
+        f'<span class="pbj-sources-item">{_ext_link(CMS_PBJ_DAILY_URL, pbj_link_label)}</span>',
+        f'<span class="pbj-sources-item">{_ext_link(CMS_PROVIDER_INFO_URL, pi_link_label)}</span>',
     ]
     cc = (care_compare_url or '').strip()
     if cc:
@@ -86,14 +96,21 @@ def render_entity_sources_footer(
     care_compare_url: str = '',
 ) -> str:
     """Entity page: PBJ + CMS chain metrics + optional Care Compare."""
-    _ = pbj_quarter_display
-    chain_label_text = (chain_label or '').strip()
+    try:
+        from public_source_vintage import source_vintage_label
+
+        pbj_label = (pbj_quarter_display or '').strip() or source_vintage_label('cms.pbj_nurse_staffing')
+        chain_label_text = (chain_label or '').strip() or source_vintage_label('cms.chain_performance')
+    except Exception:
+        pbj_label = (pbj_quarter_display or '').strip()
+        chain_label_text = (chain_label or '').strip()
+    pbj_link_label = f'CMS PBJ ({pbj_label})' if pbj_label and pbj_label != '—' else 'CMS PBJ'
     chain_link_label = 'CMS Chain Metrics'
-    if chain_label_text:
+    if chain_label_text and chain_label_text != '—':
         chain_link_label = f'CMS Chain Metrics ({chain_label_text})'
     chain_link = _ext_link(CMS_CHAIN_PERF_URL, chain_link_label)
     line_parts = [
-        f'<span class="pbj-sources-item">{_ext_link(CMS_PBJ_DAILY_URL, "CMS PBJ")}</span>',
+        f'<span class="pbj-sources-item">{_ext_link(CMS_PBJ_DAILY_URL, pbj_link_label)}</span>',
         f'<span class="pbj-sources-item">{chain_link}</span>',
     ]
     cc = (care_compare_url or '').strip()

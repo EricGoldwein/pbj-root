@@ -129,6 +129,41 @@ class TestLazyHighRiskShell(unittest.TestCase):
 
         self.assertEqual(_render_state_pbj_high_risk_section_lazy("Wyoming", "WY", {}), "")
 
+    def test_explore_shell_unified_compact_table(self):
+        from app import _render_state_pbj_high_risk_section_lazy
+
+        html = _render_state_pbj_high_risk_section_lazy(
+            "New York",
+            "NY",
+            _SAMPLE_BUCKETS,
+            raw_quarter="2025Q4",
+            as_details=False,
+        )
+        self.assertIn('data-style="compact"', html)
+        self.assertIn("CMS ratings", html)
+        self.assertIn("pbj-explore-hr-preview-ratings", html)
+        self.assertIn("Showing", html)
+        self.assertIn("Show more", html)
+        self.assertIn("style=compact", html)
+        self.assertNotIn("View all", html)
+        self.assertNotIn("pbj-explore-hr-full", html)
+        self.assertNotIn("nursing homes in New York", html)
+
+
+class TestCompactHighRiskRows(unittest.TestCase):
+    def test_compact_payload_shape(self):
+        from app import _high_risk_table_api_payload
+
+        out = _high_risk_table_api_payload(
+            "NY", "all", 0, 10, _SAMPLE_BUCKETS, row_style="compact"
+        )
+        self.assertIsNotNone(out)
+        assert out is not None
+        self.assertEqual(out["style"], "compact")
+        self.assertIn("pbj-explore-hr-preview-row", out["rows_html"])
+        self.assertIn("pbj-explore-hr-preview-ratings", out["rows_html"])
+        self.assertNotIn("state-hr-facility-name", out["rows_html"])
+
 
 class TestStatePageOwnershipContext(unittest.TestCase):
     @classmethod
@@ -147,6 +182,10 @@ class TestStatePageOwnershipContext(unittest.TestCase):
         body = resp.get_data(as_text=True)
         self.assertIn("pbj-details-top-owners", body)
         self.assertIn("chow-state-block", body)
+        self.assertIn("pbj-state-explore", body)
+        self.assertIn("Explore New York", body)
+        self.assertIn("pbj-state-premium-cta", body)
+        self.assertIn("How these figures are calculated", body)
         from ownership.state_owner_index import state_index_canonical_path
 
         self.assertIn(state_index_canonical_path("NY").lower(), body.lower())

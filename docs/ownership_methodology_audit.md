@@ -10,7 +10,7 @@ This document is for developers and QA. It does not change user-facing copy.
 
 | Source | Path / artifact | CMS product | Used for |
 |--------|-----------------|-------------|----------|
-| SNF All Owners | `ownership/SNF_All_Owners*.csv` (newest filename wins) | [SNF All Owners](https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners) | Owner names, PACs, roles, % ownership, association dates, facility org names |
+| SNF All Owners | `ownership/SNF_All_Owners*.csv` (active release via `ownership_release_policy.json`; newer discovered files are not activated until policy changes) | [SNF All Owners](https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners) | Owner names, PACs, roles, % ownership, association dates, facility org names |
 | SNF owners SQLite | `ownership/snf_owners_lookup.sqlite` | Same (deploy build) | Fast PAC / enrollment lookups |
 | Org name index | `ownership/snf_owners_org_index.json.gz` | Derived | Normalized org name → enrollment PAC |
 | CCN index | `ownership/snf_owners_ccn_index.json.gz` | Derived | CCN → enrollment PAC + match method |
@@ -155,7 +155,7 @@ These are **related but not one shared runtime database**.
 
 | Surface | Ownership source | Entity model | Geography | Staffing join |
 |---------|------------------|--------------|-----------|---------------|
-| **Public `/owners/*`** (pbj-root) | `SNF_All_Owners*.csv` → `snf_owners_lookup.sqlite` (+ indexes); CHOW via `chow_index.json` | CMS **PAC** (10-digit); not CMS affiliated_entity_id | Facility state via CCN→provider_info/search_index; owner address state is fallback | Provider-info HPRD/stars on `legal_exact` only |
+| **Public `/owners/*`** (pbj-root) | Policy-selected `SNF_All_Owners*.csv` → `snf_owners_lookup.sqlite` (+ indexes); CHOW via `chow_index.json` | CMS **PAC** (10-digit); not CMS affiliated_entity_id | Facility state via CCN→provider_info/search_index; owner address state is fallback | Provider-info HPRD/stars on `legal_exact` only |
 | **Public `/entity/{id}`** (pbj-root) | CMS **affiliated entity** / chain performance + search_index `e[]` | Integer **entity_id** (CMS affiliated entity) | Facility states from roster | Entity portfolio uses provider_info keyed by CCN |
 | **Provider page ownership block** | Same SNF sqlite + CHOW via `page_integrations.lookup_cms_ownership_for_provider` | PAC links to `/owners/{pac}/{slug}` | Facility CCN geography | Same as provider page PBJ/provider-info |
 | **PBJapp source/pipeline** | Authoritative archives under `PBJapp/ownership/_sources/*`; syncs SNF CSV to pbj-root via `scripts/sync_to_pbj_root.py` | PAC + enrollment bridge derived tables | From enrollments/CCN bridge | Separate from public profiles |

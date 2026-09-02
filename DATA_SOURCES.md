@@ -2,6 +2,8 @@
 
 **Canonical external URLs, contact info, and link structure:** see [SOURCES.md](SOURCES.md).
 
+**Geographic maps (presentation stack, not a CMS dataset):** public rankings maps use D3/TopoJSON over PBJ state/region aggregates; Mapbox is not a PBJ metric source. Inspection + no-migration recommendation: [docs/mapping-stack-infrastructure.md](docs/mapping-stack-infrastructure.md). Public methods blurb: `/data-sources#maps`. Design-context article (guidance only): [Prompting for interactive web maps in 2026](https://dev.to/mapbox/prompting-for-interactive-web-maps-in-2026-2872).
+
 ## What’s in git (publishable)
 
 - **App and static site**: `app.py`, HTML (index, about, press, report, insights, etc.), static assets, `search_index.json`.

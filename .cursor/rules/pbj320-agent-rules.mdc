@@ -11,6 +11,7 @@ alwaysApply: true
 
 - Assume terminal is **PowerShell** unless the user explicitly says Git Bash.
 - **Never** use `&&`, bash heredocs, `$(cat <<'EOF')`, `export VAR=`, or other bash-only syntax.
+- **Avoid** nested-quote `python -c "..."` one-liners — PowerShell often mangles them into Python `SyntaxError`. Prefer `_scratch/*.py` (or `scripts/`) then `python -u path\to\script.py`. Prefer editor Write / `Set-Content` over complex shell one-liners. Details: `docs/agent-powershell-python-safe.md`.
 - **Use instead:**
   - Chain: `cd path; git status; git diff`
   - Commit: `git commit -m "Short title" -m "Longer body"` — or write the message to a temp file only if needed (`git commit -F path\to\msg.txt`)

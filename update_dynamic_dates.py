@@ -88,17 +88,23 @@ def update_pbj_root_files():
     """Update all pbj-root files with dynamic dates"""
     dates = get_dynamic_dates()
     
-    # Define replacements for index-render.html
+    # Define replacements for index-render.html (legacy static titles; prefer runtime endYear)
     index_replacements = {
         'USA Nursing Home Staffing (2017-2025)': f'USA Nursing Home Staffing ({dates["data_range"]})',
-        'Nursing Home Staffing (2017-2025)': f'Nursing Home Staffing ({dates["data_range"]})'
+        'Nursing Home Staffing (2017-2025)': f'Nursing Home Staffing ({dates["data_range"]})',
+        'USA Nursing Home Staffing (2017-2026)': f'USA Nursing Home Staffing ({dates["data_range"]})',
+        'Nursing Home Staffing (2017-2026)': f'Nursing Home Staffing ({dates["data_range"]})',
     }
     
     # Define replacements for about.html
     about_replacements = {
         '33 quarters of daily data': f'{dates["quarter_count"]} quarters of daily data',
         'from 2017 to 2025': f'from {dates["data_range"]}',
-        'from 2017-2025': f'from {dates["data_range"]}'
+        'from 2017-2025': f'from {dates["data_range"]}',
+        'from 2017&ndash;2025': f'from {dates["data_range"].replace("-", "&ndash;")}',
+        'from 2017 to 2026': f'from {dates["data_range"]}',
+        'from 2017-2026': f'from {dates["data_range"]}',
+        'from 2017&ndash;2026': f'from {dates["data_range"].replace("-", "&ndash;")}',
     }
     
     # Update files

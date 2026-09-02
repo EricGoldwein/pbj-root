@@ -27,7 +27,7 @@ Provider-page **Ownership** blocks need three artifacts in sync:
 
 | Artifact | Build |
 |----------|--------|
-| `ownership/SNF_All_Owners_*.csv` | CMS download (newest dated file in `ownership/`) |
+| `ownership/SNF_All_Owners_*.csv` | CMS download; **active release** set in `ownership/ownership_release_policy.json` (not newest-on-disk) |
 | `ownership/snf_owners_lookup.sqlite` + `snf_owners_org_index.json.gz` | `python scripts/build_snf_owners_index.py` |
 | `ownership/snf_owners_ccn_index.json.gz` | `python scripts/build_snf_owners_ccn_index.py` |
 

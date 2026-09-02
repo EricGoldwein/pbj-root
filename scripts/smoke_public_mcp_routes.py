@@ -16,7 +16,7 @@ def main() -> int:
     checks = []
     for path, needle in (
         ("/healthz", None),
-        ("/agents", "PBJ320 for AI agents"),
+        ("/agents", "https://www.pbj320.com/mcp"),
         ("/llms.txt", "get_staffing_evidence"),
     ):
         resp = client.get(path)

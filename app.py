@@ -11023,12 +11023,6 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-details-content p:last-child {{ margin-bottom: 0; }}
 .pbj-details-content ul {{ margin: 0.5rem 0 1rem; padding-left: 1.25rem; }}
 .pbj-details-content li {{ margin-bottom: 0.25rem; }}
-.pbj-metrics-row {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 1rem 0; }}
-.pbj-metric-card {{ background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(30, 41, 59, 0.6); border-radius: 8px; padding: 1rem; color: #e2e8f0; transition: border-color 0.2s ease, box-shadow 0.2s ease; }}
-.pbj-metric-card:hover {{ border-color: rgba(51, 65, 85, 0.85); box-shadow: 0 0 18px -12px rgba(129, 140, 248, 0.12); }}
-.pbj-metric-card .label {{ font-size: 0.72em; color: #94a3b8; margin-bottom: 4px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }}
-.pbj-metric-card .value {{ font-size: 1.25rem; font-weight: 700; color: #e2e8f0; }}
-.pbj-metric-card .delta {{ font-size: 0.8em; color: #94a3b8; margin-top: 2px; }}
 /* Page overview: layered navy surfaces (page #0B0F17 / overview #121826 / elevated #181F2E) */
 .pbj-content-box:has(> .pbj-page-overview),
 .pbj-content-box:has(> .pbj-page-summary) {{
@@ -13451,7 +13445,6 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
 .pbj-hprd-rank-mobile-only {{ display: none !important; }}
 .pbj-hprd-rank-desktop-only {{ display: inline-block !important; }}
 @media (max-width: 768px) {{
-  .pbj-metrics-row {{ grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }}
   .pbj-content {{ padding: 20px 16px; }}
   .pbj-content-box {{ padding: 24px 20px; margin-bottom: 20px; }}
   .pbj-content-box h1 {{ font-size: 1.5rem; }}
@@ -13580,7 +13573,6 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
   .pbj-infobox {{ float: none; width: 100%; margin: 1rem 0; }}
   .infobox {{ float: none; width: 100%; margin: 1em 0; }}
   .state-key-metrics-row {{ grid-template-columns: repeat(2, 1fr); }}
-  .pbj-metric-card .value {{ font-size: 1.1rem; }}
   /* PBJ Takeaway: on desktop larger font for entity/provider/state */
   @media (min-width: 769px) {{
     .pbj-takeaway-header {{ font-size: 1.35rem !important; }}
@@ -18098,28 +18090,6 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     )
     contract_pct = format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage")
     direct_hprd_val = format_metric_value(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD')
-    residents_str = f"{census_int:,} residents" if census_int else "Census not reported"
-    total_direct_badge = f"{hprd_val} HPRD (Direct: {direct_hprd_val})"
-    total_hprd_badge_title = html.escape(
-        'Total nurse staffing hours per resident day (HPRD), including direct care and admin/supervisory nursing roles.',
-        quote=True
-    )
-    direct_hprd_badge_title = html.escape(
-        'Shows total nurse HPRD, with direct care HPRD in parentheses (direct care excludes admin and Director of Nursing time).',
-        quote=True
-    )
-    residents_badge_title = html.escape(
-        'Average daily resident census reported by CMS for this quarter.',
-        quote=True
-    )
-    staffing_badge_title = html.escape(
-        'CMS staffing star rating (1-5), where more stars indicate stronger staffing performance.',
-        quote=True
-    )
-    overall_badge_title = html.escape(
-        'CMS overall star rating (1-5), based on health inspections, staffing, and quality measures.',
-        quote=True
-    )
     # CMS star ratings (1-5): show as "Overall: ★★★" (amber stars; red at 1 star)
     _overall_raw = (_ratings_pi or {}).get('overall_rating')
     _staffing_raw = (_ratings_pi or {}).get('staffing_rating')
@@ -18127,32 +18097,6 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     _staff_n = _rating_star_count(_staffing_raw)
     overall_star_icons = _star_icons_from_rating(_overall_raw)
     staffing_star_icons = _star_icons_from_rating(_staffing_raw)
-    badge_span = 'display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; white-space: nowrap; color: #e4e4e7; background: rgba(39,39,42,0.65); border: 1px solid #3f3f46; transition: all 0.2s ease;'
-    overall_badge_style = TAKEAWAY_BADGE_STAR_WARN_STYLE if _overall_n == 1 else badge_span
-    staffing_badge_style = TAKEAWAY_BADGE_STAR_WARN_STYLE if _staff_n == 1 else badge_span
-    overall_badge_html = ''
-    if 'overall_star' not in priority_covered and overall_star_icons != '—':
-        overall_badge_html = (
-            f'<span style="{overall_badge_style}" title="{overall_badge_title}">Overall: '
-            f'{_badge_star_span_html(overall_star_icons, _overall_n)}</span>'
-        )
-    staffing_badge_html = ''
-    if 'staffing_star' not in priority_covered and staffing_star_icons != '—':
-        staffing_badge_html = (
-            f'<span style="{staffing_badge_style}" title="{staffing_badge_title}">'
-            f'{_takeaway_star_kind_label_html("staffing")} '
-            f'{_badge_star_span_html(staffing_star_icons, _staff_n)}</span>'
-        )
-    casemix_badge_html = ''
-    if case_mix_total is not None and casemix_str and casemix_str != '—':
-        casemix_badge_title = html.escape(
-            'CMS case-mix total nurse HPRD (acuity benchmark) for this quarter.',
-            quote=True,
-        )
-        casemix_badge_html = (
-            f'<span class="pbj-badge-mobile-hide" style="{badge_span}" title="{casemix_badge_title}">'
-            f'Case-Mix: {casemix_str}</span>'
-        )
     percentile_line = ''
     state_pct_phrase = format_percentile_phrase(state_percentile_total, state_name)
     if state_pct_phrase:

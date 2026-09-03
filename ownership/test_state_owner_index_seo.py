@@ -1,4 +1,4 @@
-"""SEO/indexability tests for published state ownership index pages (NY, CT, FL)."""
+﻿"""SEO/indexability tests for published state ownership index pages (NY, CT, FL)."""
 from __future__ import annotations
 
 import json
@@ -43,7 +43,8 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
         self.assertIn("owners-state-hero-rail", body)
         self.assertIn("ownership &amp; control", body)
         self.assertIn("owners-state-h1--balanced", body)
-        self.assertIn("Largest CT ownership-interest portfolios", body)
+        self.assertIn("Largest CT portfolios", body)
+        self.assertIn("owners-hub-panel-info", body)
         self.assertIn("About this Connecticut ownership index", body)
         self.assertGreater(body.find("owners-state-method"), body.find("owners-state-panels"))
 
@@ -57,14 +58,14 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
         self.assertFalse(state_owner_index_is_draft("FL"))
         body, layout = render_state_owner_index_body("FL", get_canonical_slug=lambda s: "florida")
         self.assertNotIn("owners-state-draft-banner", body)
-        self.assertIn("Largest FL ownership-interest portfolios", body)
+        self.assertIn("Largest FL portfolios", body)
         self.assertIn(layout["subtitle"], body)
 
     def test_nj_public_index_not_draft(self):
         self.assertFalse(state_owner_index_is_draft("NJ"))
         body, layout = render_state_owner_index_body("NJ", get_canonical_slug=lambda s: "new-jersey")
         self.assertNotIn("owners-state-draft-banner", body)
-        self.assertIn("Largest NJ ownership-interest portfolios", body)
+        self.assertIn("Largest NJ portfolios", body)
         self.assertIn(layout["subtitle"], body)
 
     def test_sitemap_includes_all_public_state_pages(self):
@@ -127,8 +128,8 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
         self.assertIn("payroll-based-journal-daily-nurse-staffing", body)
         self.assertIn('href="https://fec.gov/"', body)
         self.assertNotIn("owners-state-panel-footer", body)
-        self.assertIn("Largest NY ownership-interest portfolios", body)
-        self.assertIn("Largest New York ownership-interest portfolios", body)
+        self.assertIn("Largest NY portfolios", body)
+        self.assertIn("Largest New York portfolios", body)
         self.assertIn("Recent ownership changes", body)
         self.assertIn("ownership &amp; control", body)
         self.assertIn("About this New York ownership index", body)
@@ -214,7 +215,7 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
         self.assertNotIn("Transfer details", body)
         self.assertNotIn("Reported buyer:", body)
         self.assertNotIn("owners-state-chow-head", body)
-        self.assertNotIn('ownership-transfer-location">·', body)
+        self.assertNotIn('ownership-transfer-location">┬╖', body)
         self.assertIn('aria-label="View ownership transfer details for', body)
 
     def test_try_chips_link_to_owner_profiles(self):

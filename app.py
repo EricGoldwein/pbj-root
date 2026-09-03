@@ -8288,6 +8288,187 @@ def _get_latest_quarter_values(path, n_quarters=_LATEST_PROVIDER_QUARTERS):
     except Exception:
         return None
 
+
+# ---------------------------------------------------------------------------
+# Provider Info <-> PBJ quarter vintage resolution
+#
+# Each ProviderInfoNorm_*/NH_ProviderInfo_* snapshot file carries one uniform
+# ``quarter`` (display, e.g. "Q1 2026") and ``processing_date`` value for every
+# row. CMS republishes Provider Info monthly even when the underlying
+# PBJ-linked figures (HPRD, census) have not advanced to a new PBJ quarter, so
+# more than one monthly snapshot can legitimately self-tag the same PBJ
+# quarter in a row (e.g. both July and August 2026 tag "Q1 2026" -- this is
+# the normal, recurring publication pattern, not an anomaly: every PBJ
+# quarter in the last two-plus years has been tagged by 2-4 consecutive
+# monthly Provider Info releases).
+#
+# Tie-break for which same-tagged snapshot is canonical: the one with the
+# LATEST processing_date. This mirrors PBJapp's ``coalesce_provider_quarter_
+# snapshots`` (pbj_case_mix_cmi.py), the more complete sibling implementation
+# of this exact problem for the per-facility dynamic dashboards: "CMS
+# republishes the same quarter label across processing_date values; the
+# chronologically last snapshot is not always complete ... For each column
+# this returns the newest non-null, non-sentinel value." An earlier draft of
+# this resolver picked the EARLIEST same-tagged snapshot instead, inferring
+# that rule from docs/RELEASE_MANIFEST_2026Q1_JULY.md's July pin and
+# ownership_release_policy.json's "provider_info_source_filename": "..._07"
+# entry -- but those pins were recorded before the August snapshot existed,
+# and PBJapp's actual running mechanism (verified against its source,
+# 2026-09-03) resolves the newest available value once both are visible,
+# not the first. Neither this repo nor PBJapp gives certified_beds any
+# sentinel/sanity protection (unlike nursing_case_mix_index, which PBJapp
+# does protect) -- that is a real, open product-policy gap, not something
+# this resolver silently invents a fix for.
+#
+# NOTE: this is deliberately NOT "fall back to whatever Provider Info is
+# current" -- commit 4cf6fe6 ("Tighten public case-mix exports...") removed
+# exactly that fallback from get_provider_info_for_quarter() because it
+# backfilled *current* case-mix onto historic public export rows (a current
+# snapshot can be from a PBJ quarter *after* the one being displayed, which
+# violates "never use a future Provider Info value for an earlier PBJ
+# quarter"). The prior-vintage fallback below only ever walks to an earlier
+# quarter's own established snapshot -- never to the current/latest one.
+# PBJapp's own resolver (provider_context_lib.select_provider_row_for_quarter)
+# does not implement a prior-quarter fallback at all ("No generic
+# earlier-quarter substitution is applied for quarter-scoped views") -- it
+# returns no row on a miss. This resolver adds one anyway, scoped strictly to
+# an earlier quarter's own established snapshot, because it is strictly safer
+# than showing nothing and cannot regress into the current-snapshot bug above.
+_PROVIDER_SNAPSHOT_QUARTER_REGISTRY_CACHE = None
+_PROVIDER_SNAPSHOT_QUARTER_REGISTRY_AT = 0.0
+_PROVIDER_SNAPSHOT_QUARTER_REGISTRY_TTL = 900.0
+
+
+def _provider_snapshot_quarter_and_processing_date(path):
+    """Return (quarter_cy, processing_date) for one snapshot file's uniform per-row tag.
+
+    Uses the mode of non-null values (robust to a handful of stray/blank rows)
+    rather than the first row. Returns (None, None) when the file has no usable
+    quarter tag (e.g. a gap-month snapshot with a blank ``quarter`` column).
+    """
+    if get_pd() is None:
+        return None, None
+    try:
+        header_cols = set(pd.read_csv(path, nrows=0).columns)
+        has_cy = 'CY_Qtr' in header_cols
+        has_q = 'quarter' in header_cols
+        has_pd_col = 'processing_date' in header_cols
+        if not (has_cy or has_q):
+            return None, None
+        usecols = [c for c in ('CY_Qtr', 'quarter', 'processing_date') if c in header_cols]
+        df = pd.read_csv(path, usecols=usecols, low_memory=False)
+        q_cy = None
+        if has_cy:
+            vals = df['CY_Qtr'].dropna().astype(str).str.strip()
+            vals = vals[vals != '']
+            if not vals.empty:
+                q_cy = vals.mode().iat[0]
+        if not q_cy and has_q:
+            vals = df['quarter'].dropna().astype(str).str.strip()
+            vals = vals[vals != '']
+            if not vals.empty:
+                q_cy = _quarter_display_to_cy_qtr(vals.mode().iat[0])
+        if not q_cy or not re.match(r'^\d{4}Q[1-4]$', str(q_cy)):
+            return None, None
+        proc_dt = None
+        if has_pd_col:
+            proc_vals = pd.to_datetime(df['processing_date'], errors='coerce').dropna()
+            if not proc_vals.empty:
+                proc_dt = proc_vals.mode().iat[0]
+        return q_cy, proc_dt
+    except Exception:
+        return None, None
+
+
+def _quarter_cy_sort_key(q_cy):
+    m = re.match(r'^(\d{4})Q([1-4])$', str(q_cy or '').strip())
+    if not m:
+        return None
+    return (int(m.group(1)), int(m.group(2)))
+
+
+def _provider_snapshot_quarter_registry(force_refresh=False):
+    """Map each PBJ quarter to the Provider Info snapshot that is canonical for it.
+
+    Deterministic: built once from file-level (quarter, processing_date) tags
+    discovered under ``provider_info/`` (independent of directory-listing
+    order), so cold single-CCN lookups and a warmed national scan resolve the
+    same (ccn, quarter) to the same source row. When more than one snapshot
+    self-tags the same quarter, the one with the LATEST processing_date wins
+    -- see the module note above (matches PBJapp's coalesce_provider_quarter_
+    snapshots). Returns ``{quarter_cy: {'path': str, 'processing_date': Timestamp|None}}``.
+    """
+    global _PROVIDER_SNAPSHOT_QUARTER_REGISTRY_CACHE, _PROVIDER_SNAPSHOT_QUARTER_REGISTRY_AT
+    now = time.time()
+    if (
+        not force_refresh
+        and _PROVIDER_SNAPSHOT_QUARTER_REGISTRY_CACHE is not None
+        and (now - _PROVIDER_SNAPSHOT_QUARTER_REGISTRY_AT) < _PROVIDER_SNAPSHOT_QUARTER_REGISTRY_TTL
+    ):
+        return _PROVIDER_SNAPSHOT_QUARTER_REGISTRY_CACHE
+    if get_pd() is None:
+        return _PROVIDER_SNAPSHOT_QUARTER_REGISTRY_CACHE or {}
+    by_quarter: dict[str, list[tuple]] = {}
+    for path in _provider_snapshot_candidate_paths():
+        if not os.path.isfile(path):
+            continue
+        q_cy, proc_dt = _provider_snapshot_quarter_and_processing_date(path)
+        if not q_cy:
+            continue
+        by_quarter.setdefault(q_cy, []).append((proc_dt, path))
+    registry: dict[str, dict] = {}
+    for q_cy, entries in by_quarter.items():
+        dated = [(dt, p) for dt, p in entries if dt is not None]
+        if dated:
+            dated.sort(key=lambda t: t[0])
+            canonical_dt, canonical_path = dated[-1]
+        else:
+            # No usable processing_date on any candidate for this quarter tag:
+            # fall back to filename recency, newest-named first, for a stable pick.
+            entries_sorted = sorted(
+                entries, key=lambda t: _provider_snapshot_recency_key(t[1]), reverse=True
+            )
+            canonical_dt, canonical_path = None, entries_sorted[0][1]
+        registry[q_cy] = {'path': canonical_path, 'processing_date': canonical_dt}
+    _PROVIDER_SNAPSHOT_QUARTER_REGISTRY_CACHE = registry
+    _PROVIDER_SNAPSHOT_QUARTER_REGISTRY_AT = now
+    return registry
+
+
+def resolve_provider_info_snapshot_path_for_quarter(raw_quarter):
+    """Deterministically resolve the Provider Info snapshot for a PBJ quarter.
+
+    1. Exact match: the canonical snapshot for ``raw_quarter`` (latest
+       processing_date among snapshots self-tagged with that quarter -- see
+       module note above).
+    2. No exact match: the nearest PRIOR quarter present in the registry.
+       Never a quarter chronologically after ``raw_quarter``.
+
+    Returns ``(path, matched_quarter_cy)`` or ``(None, None)``.
+    """
+    target_key = _quarter_cy_sort_key(raw_quarter)
+    if target_key is None:
+        return None, None
+    registry = _provider_snapshot_quarter_registry()
+    if not registry:
+        return None, None
+    target_cy = f'{target_key[0]}Q{target_key[1]}'
+    if target_cy in registry:
+        return registry[target_cy]['path'], target_cy
+    best_key = None
+    best_cy = None
+    for q_cy in registry:
+        k = _quarter_cy_sort_key(q_cy)
+        if k is None or k >= target_key:
+            continue
+        if best_key is None or k > best_key:
+            best_key = k
+            best_cy = q_cy
+    if best_cy is None:
+        return None, None
+    return registry[best_cy]['path'], best_cy
+
+
 def _resolved_provider_info_paths():
     """Prefer ProviderInfoNorm / NH_ProviderInfo snapshots; fall back to combined CSVs only if no snapshot exists."""
     paths = []
@@ -8393,6 +8574,11 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                 if v is not None and not (isinstance(v, float) and pd.isna(v)) and str(v).strip() != '':
                     return v
         return None
+    # Quarter-keyed cache entries are only written from each quarter's registry-established
+    # snapshot (see resolve_provider_info_snapshot_path_for_quarter) so this scan -- whether
+    # it visits one file (partial/per-CCN) or all of them (national warm scan) -- agrees with
+    # the cold single-CCN lookup path instead of depending on directory-scan order.
+    _quarter_registry = _provider_snapshot_quarter_registry()
     for path in provider_paths:
         if not os.path.exists(path):
             continue
@@ -8540,7 +8726,7 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                             continue
                         provider_dict[provnum] = row_dict
                         quarter_cy = _quarter_from_row(row)
-                        if quarter_cy:
+                        if quarter_cy and _quarter_registry.get(quarter_cy, {}).get('path') == path:
                             provider_dict_by_quarter[(provnum, quarter_cy)] = row_dict
                         if partial_targets.issubset(provider_dict.keys()):
                             _merge_partial_provider_info_cache(provider_dict, provider_dict_by_quarter)
@@ -8555,7 +8741,7 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                         if pd.notna(new_dt) and (pd.isna(old_dt) or new_dt >= old_dt):
                             provider_dict[provnum] = row_dict
                     quarter_cy = _quarter_from_row(row)
-                    if quarter_cy:
+                    if quarter_cy and _quarter_registry.get(quarter_cy, {}).get('path') == path:
                         provider_dict_by_quarter[(provnum, quarter_cy)] = row_dict
             if partial_scan:
                 _merge_partial_provider_info_cache(provider_dict, provider_dict_by_quarter)
@@ -8894,7 +9080,12 @@ def _ensure_state_case_mix_medians(raw_quarter: str) -> dict[str, float]:
 
 
 def _scan_provider_row_for_ccn_quarter(ccn: str, raw_quarter: str) -> dict | None:
-    """Return one provider-info row for CCN+quarter without building the national index."""
+    """Return one provider-info row for CCN+quarter without building the national index.
+
+    Snapshot selection is deterministic -- see resolve_provider_info_snapshot_path_for_quarter()
+    -- rather than "first file matching this quarter tag in directory-scan order", so this
+    agrees with the warmed national cache regardless of which one runs first.
+    """
     if get_pd() is None:
         return None
     ccn = str(ccn or '').strip().zfill(6)
@@ -8905,38 +9096,32 @@ def _scan_provider_row_for_ccn_quarter(ccn: str, raw_quarter: str) -> dict | Non
         hit = _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.get((ccn, q))
         if hit:
             return hit
-    for path in _resolved_provider_info_paths():
-        if not os.path.isfile(path):
-            continue
-        try:
-            header_cols = set(pd.read_csv(path, nrows=0).columns)
-            ccn_cols = [c for c in header_cols if str(c).lower() in ('ccn', 'provnum') or 'ccn' in str(c).lower()]
-            qcol = 'CY_Qtr' if 'CY_Qtr' in header_cols else ('quarter' if 'quarter' in header_cols else None)
-            if not ccn_cols or not qcol:
+    path, _matched_q = resolve_provider_info_snapshot_path_for_quarter(q)
+    if not path or not os.path.isfile(path):
+        return None
+    try:
+        header_cols = set(pd.read_csv(path, nrows=0).columns)
+        ccn_cols = [c for c in header_cols if str(c).lower() in ('ccn', 'provnum') or 'ccn' in str(c).lower()]
+        if not ccn_cols:
+            return None
+        usecols = _provider_info_scan_usecols(header_cols)
+        if not usecols:
+            return None
+        for chunk in pd.read_csv(path, usecols=usecols, low_memory=False, chunksize=150000):
+            if chunk.empty:
                 continue
-            usecols = _provider_info_scan_usecols(header_cols)
-            if not usecols:
-                continue
-            # Exact CCN+quarter: scan full provider-info file (not limited to latest N quarters).
-            for chunk in pd.read_csv(path, usecols=usecols, low_memory=False, chunksize=150000):
-                if chunk.empty:
+            for row in chunk.to_dict('records'):
+                raw = None
+                for k in ('ccn', 'PROVNUM', 'CCN', 'Provnum', 'CMS Certification Number (CCN)'):
+                    if k in row and row[k] is not None:
+                        raw = row[k]
+                        break
+                provnum = str(raw or '').strip().replace('.0', '').zfill(6)
+                if provnum != ccn:
                     continue
-                for row in chunk.to_dict('records'):
-                    raw = None
-                    for k in ('ccn', 'PROVNUM', 'CCN', 'Provnum', 'CMS Certification Number (CCN)'):
-                        if k in row and row[k] is not None:
-                            raw = row[k]
-                            break
-                    provnum = str(raw or '').strip().replace('.0', '').zfill(6)
-                    if provnum != ccn:
-                        continue
-                    quarter_cy = _quarter_from_row(row)
-                    if quarter_cy != q:
-                        continue
-                    return _provider_metrics_from_csv_row(row)
-        except Exception as e:
-            print(f"Error scanning provider row for {ccn} {q} from {path}: {e}")
-            continue
+                return _provider_metrics_from_csv_row(row)
+    except Exception as e:
+        print(f"Error scanning provider row for {ccn} {q} from {path}: {e}")
     return None
 
 
@@ -18002,7 +18187,12 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             return 'below'
         return 'around'
     _t_ch = time.perf_counter()
-    _certified_beds_chart = (
+    # Quarter-matched (pi_case_mix) first, so this never shows a later/"current" Provider
+    # Info vintage's certified_beds next to an earlier displayed PBJ quarter's census. Shared
+    # by the chart below and the AI-context/CSV-export uses further down (was previously
+    # recomputed there with the opposite precedence -- provider_info_row before pi_header --
+    # which bypassed quarter matching entirely; see docs/RELEASE_MANIFEST_2026Q1_JULY.md).
+    _certified_beds = (
         _provider_certified_beds(pi_case_mix)
         or _provider_certified_beds(provider_info_row)
         or _provider_certified_beds(pi_header)
@@ -18020,7 +18210,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         case_mix_na,
         case_mix_index,
         case_mix_index_ratio,
-        certified_beds=_certified_beds_chart,
+        certified_beds=_certified_beds,
         ccn=prov,
     )
     _psec('charts', _t_ch)
@@ -18327,7 +18517,6 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             _eid = str(entity_id).strip()
             if _eid.isdigit():
                 _facility_entity_page_url = f'{base_url}/entity/{_eid}'
-    _certified_beds = _provider_certified_beds(provider_info_row or pi_header)
     _facility_snapshot_ai = _provider_ai_facility_snapshot_context(
         pi_header if isinstance(pi_header, dict) else {},
         census_int=census_int,

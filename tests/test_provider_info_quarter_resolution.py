@@ -281,5 +281,99 @@ class OwnershipPortfolioCurrentSnapshotUnaffectedTests(unittest.TestCase):
         self.assertEqual(str(row.get('beds')), '45')
 
 
+def _facility_df(rows: list[tuple[str, float]]) -> pd.DataFrame:
+    """facility_quarterly-shaped DataFrame with every column
+    _provider_charts_chartjs_data touches, so a missing optional column doesn't
+    silently truncate a series to length 0 (real facility_quarterly_metrics rows
+    always carry these columns; only this synthetic fixture needs them spelled out)."""
+    return pd.DataFrame(
+        [
+            {
+                'CY_Qtr': q,
+                'Total_Nurse_HPRD': 4.0,
+                'Nurse_Care_HPRD': 3.5,
+                'RN_HPRD': 0.6,
+                'RN_Care_HPRD': 0.5,
+                'LPN_HPRD': 1.0,
+                'LPN_Care_HPRD': 0.9,
+                'Nurse_Assistant_HPRD': 2.4,
+                'Contract_Percentage': 0.0,
+                'avg_daily_census': census,
+            }
+            for q, census in rows
+        ]
+    )
+
+
+class HistoricalCertifiedBedsChartSeriesTests(unittest.TestCase):
+    """Live-site follow-up: the census chart's "Certified beds" line was broadcasting one
+    scalar (the current-quarter value) across every historical quarter instead of resolving
+    each quarter independently. _provider_charts_chartjs_data must build that series by
+    calling get_provider_info_for_quarter() once per quarter -- the same deterministic,
+    prior-only/never-future resolver used for the current-quarter display -- not repeat a
+    single value backward across history."""
+
+    def setUp(self) -> None:
+        app_mod._LOAD_PROVIDER_INFO_CACHE = None
+        app_mod._LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = None
+        app_mod._LOAD_PROVIDER_INFO_AT = 0
+        app_mod._PROVIDER_SNAPSHOT_QUARTER_REGISTRY_CACHE = None
+        app_mod._PROVIDER_SNAPSHOT_QUARTER_REGISTRY_AT = 0.0
+        app_mod.get_pd()
+
+    tearDown = setUp
+
+    def test_mary_wade_historical_beds_series_is_not_flat_45(self) -> None:
+        # Real repo data: 075325 across every available PBJ quarter.
+        fac = _facility_df(
+            [
+                ('2025Q3', 89.2),
+                ('2025Q4', 86.1),
+                ('2026Q1', 84.0),
+            ]
+        )
+        out = app_mod._provider_charts_chartjs_data(
+            fac, 'CT', 1.0, 1.0, 1.0, 1.0, None, None, None, None, ccn='075325',
+        )
+        beds = out['census']['beds']
+        self.assertIsNotNone(beds)
+        # Each quarter resolves through its own vintage -- not a single repeated scalar.
+        self.assertEqual(beds, [94, 94, 45])
+        self.assertFalse(all(b == beds[0] for b in beds), 'beds series must not be flat')
+
+    def test_bed_count_change_does_not_broadcast_backward(self) -> None:
+        # A facility whose bed count changes in the newest quarter must not have that
+        # newest value silently applied to older quarters that had a different value.
+        fac = _facility_df([('2025Q3', 89.2), ('2025Q4', 86.1), ('2026Q1', 84.0)])
+        out = app_mod._provider_charts_chartjs_data(
+            fac, 'CT', 1.0, 1.0, 1.0, 1.0, None, None, None, None, ccn='075325',
+        )
+        beds = out['census']['beds']
+        self.assertEqual(beds[0], 94)   # 2025Q3: pre-change value preserved
+        self.assertEqual(beds[1], 94)   # 2025Q4: pre-change value preserved
+        self.assertEqual(beds[2], 45)   # 2026Q1: new value only on its own quarter
+        self.assertNotEqual(beds[0], beds[2])
+
+    def test_control_ccn_335513_historical_series_constant_where_source_is_constant(self) -> None:
+        fac = _facility_df([('2025Q3', 350.7), ('2025Q4', 347.4), ('2026Q1', 350.2)])
+        out = app_mod._provider_charts_chartjs_data(
+            fac, 'CT', 1.0, 1.0, 1.0, 1.0, None, None, None, None, ccn='335513',
+        )
+        beds = out['census']['beds']
+        self.assertEqual(beds, [360, 360, 360])
+
+    def test_quarter_with_no_eligible_vintage_is_a_null_gap_not_a_guess(self) -> None:
+        # 2017Q1 predates every available Provider Info snapshot in this worktree (no
+        # provider_info_combined.csv deep archive present locally) -- must be null, never
+        # backfilled from a later quarter's value.
+        fac = _facility_df([('2017Q1', 92.7), ('2026Q1', 84.0)])
+        out = app_mod._provider_charts_chartjs_data(
+            fac, 'CT', 1.0, 1.0, 1.0, 1.0, None, None, None, None, ccn='075325',
+        )
+        beds = out['census']['beds']
+        self.assertIsNone(beds[0])
+        self.assertEqual(beds[1], 45)
+
+
 if __name__ == '__main__':
     unittest.main()

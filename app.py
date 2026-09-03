@@ -16158,7 +16158,13 @@ def _provider_charts_chartjs_data(
     certified_beds=None,
     ccn=None,
 ):
-    """Build JSON-serializable chart data for Chart.js. Use null (None) for missing; never substitute 0. Order: Total, RN, LPN, Nurse aide."""
+    """Build JSON-serializable chart data for Chart.js. Use null (None) for missing; never substitute 0. Order: Total, RN, LPN, Nurse aide.
+
+    ``certified_beds`` (the caller's single current-quarter value) is accepted for call-site
+    compatibility but is NOT used to build the census chart's historical beds series -- that
+    series is resolved independently per quarter via get_provider_info_for_quarter (see below),
+    never broadcast from one scalar.
+    """
     t_chart = time.perf_counter()
     def _round_val(v):
         if v is None or (isinstance(v, float) and pd.isna(v)):
@@ -16273,13 +16279,35 @@ def _provider_charts_chartjs_data(
         }
         col = 'avg_daily_census' if 'avg_daily_census' in df.columns else 'Avg_Daily_Census'
         census_vals = _series_to_list_rounded(df[col] if col in df.columns else pd.Series(dtype=float), 1)
+        # Certified beds per historical quarter -- resolved independently for each quarter
+        # through the same deterministic, prior-only/never-future Provider Info matcher used
+        # for the current-quarter display (get_provider_info_for_quarter), not broadcast from
+        # a single scalar. A quarter with no eligible vintage anywhere (recent snapshot or the
+        # deep provider_info_combined.csv archive) is left as null -- a gap in the chart line,
+        # not a guess.
         beds_vals = None
-        if certified_beds is not None:
+        if ccn and quarters:
             try:
-                beds_n = int(float(str(certified_beds).replace(',', '')))
-                if beds_n > 0:
-                    beds_vals = [beds_n] * len(quarters)
-            except (TypeError, ValueError):
+                per_quarter_beds = []
+                found_any = False
+                for q in quarters:
+                    b = None
+                    pi_q_row = get_provider_info_for_quarter(ccn, q) if q else None
+                    if isinstance(pi_q_row, dict):
+                        b = _provider_certified_beds(pi_q_row)
+                    if b is not None:
+                        try:
+                            b_n = int(float(str(b).replace(',', '')))
+                        except (TypeError, ValueError):
+                            b_n = None
+                        if b_n is not None and b_n > 0:
+                            per_quarter_beds.append(b_n)
+                            found_any = True
+                            continue
+                    per_quarter_beds.append(None)
+                if found_any:
+                    beds_vals = per_quarter_beds
+            except Exception:
                 beds_vals = None
         out['census'] = {'quarters': quarters, 'census': census_vals, 'beds': beds_vals}
     except Exception as e:

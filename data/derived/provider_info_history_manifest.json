@@ -1,0 +1,305 @@
+{
+  "artifact": "provider_info_history.parquet",
+  "build_timestamp_utc": "2026-09-03T22:40:36.756881+00:00",
+  "build_script": "scripts/build_provider_info_history.py",
+  "source_dir": "C:\\Users\\egold\\PycharmProjects\\PBJapp\\provider_info_normalized",
+  "source_files_considered": 101,
+  "source_files_used": 32,
+  "row_count": 484472,
+  "unique_ccn_count": 16180,
+  "quarter_coverage": {
+    "min": "2017Q4",
+    "max": "2026Q1",
+    "count": 32,
+    "all": [
+      "2017Q4",
+      "2018Q1",
+      "2018Q2",
+      "2018Q3",
+      "2018Q4",
+      "2019Q1",
+      "2019Q2",
+      "2019Q3",
+      "2019Q4",
+      "2020Q2",
+      "2020Q3",
+      "2020Q4",
+      "2021Q1",
+      "2021Q2",
+      "2021Q3",
+      "2021Q4",
+      "2022Q1",
+      "2022Q2",
+      "2022Q3",
+      "2022Q4",
+      "2023Q1",
+      "2023Q2",
+      "2023Q3",
+      "2024Q1",
+      "2024Q2",
+      "2024Q3",
+      "2024Q4",
+      "2025Q1",
+      "2025Q2",
+      "2025Q3",
+      "2025Q4",
+      "2026Q1"
+    ]
+  },
+  "grain": "one row per (ccn, pbj_quarter) -- the canonical (latest processing_date among same-quarter-tagged source files) snapshot for that quarter",
+  "columns": [
+    "ccn",
+    "pbj_quarter",
+    "processing_date",
+    "source_filename",
+    "certified_beds",
+    "avg_residents_per_day",
+    "nursing_case_mix_index",
+    "nursing_case_mix_index_ratio",
+    "case_mix_total_nurse_hrs_per_resident_per_day",
+    "case_mix_rn_hrs_per_resident_per_day",
+    "case_mix_lpn_hrs_per_resident_per_day",
+    "case_mix_na_hrs_per_resident_per_day",
+    "case_mix_weekend_total_nurse_hrs_per_resident_per_day",
+    "adjusted_total_nurse_hrs_per_resident_per_day",
+    "overall_rating",
+    "staffing_rating",
+    "qm_rating",
+    "health_inspection_rating",
+    "sff_status",
+    "abuse_icon",
+    "provider_changed_ownership_in_last_12_months",
+    "state"
+  ],
+  "sources": [
+    {
+      "pbj_quarter": "2017Q4",
+      "source_filename": "ProviderInfoNorm_2018_06.csv",
+      "processing_date": "2018-06-01",
+      "sha256": "921bec14e5add214a560102952faa4a5e28a2224074a58b6fed0a8dffb79e03d",
+      "row_count": 15630
+    },
+    {
+      "pbj_quarter": "2018Q1",
+      "source_filename": "ProviderInfoNorm_2018_09.csv",
+      "processing_date": "2018-09-01",
+      "sha256": "50f87ab69ed6398d9c5d98041c1b614c8cd1ae2ea8313d21f3d5649fd028a30c",
+      "row_count": 15611
+    },
+    {
+      "pbj_quarter": "2018Q2",
+      "source_filename": "ProviderInfoNorm_2018_12.csv",
+      "processing_date": "2018-12-01",
+      "sha256": "ab74fd265dd12e900a97390d7e1c4f95664e927c91cc9e79b2c12ed31a4d9135",
+      "row_count": 15596
+    },
+    {
+      "pbj_quarter": "2018Q3",
+      "source_filename": "ProviderInfoNorm_2019_03.csv",
+      "processing_date": "2019-03-01",
+      "sha256": "5839953fa4aaded202797d749bbe5af1f5a275a5e52729fc1ba7b0d7cdcf09c8",
+      "row_count": 15580
+    },
+    {
+      "pbj_quarter": "2018Q4",
+      "source_filename": "ProviderInfoNorm_2019_06.csv",
+      "processing_date": "2019-06-01",
+      "sha256": "2b7aedee92a61f0bcccc09f69df8b78516b14adef99c16427fcf67aa74cb1f78",
+      "row_count": 15527
+    },
+    {
+      "pbj_quarter": "2019Q1",
+      "source_filename": "ProviderInfoNorm_2019_09.csv",
+      "processing_date": "2019-09-01",
+      "sha256": "974d5d9d38571f31152a3407708e37ff568c9f5992644d11c62c8da9041479f9",
+      "row_count": 15511
+    },
+    {
+      "pbj_quarter": "2019Q2",
+      "source_filename": "ProviderInfoNorm_2019_12.csv",
+      "processing_date": "2019-11-01",
+      "sha256": "e612a3ace792191a7f627538ede520604ed1cf51ef194281bd2238de1db74c18",
+      "row_count": 15471
+    },
+    {
+      "pbj_quarter": "2019Q3",
+      "source_filename": "ProviderInfoNorm_2020_03.csv",
+      "processing_date": "2020-03-01",
+      "sha256": "6876742f683076e5e545056d4e6e4a661197ba13cb47d9ed6bce96fdb8a4f572",
+      "row_count": 15446
+    },
+    {
+      "pbj_quarter": "2019Q4",
+      "source_filename": "ProviderInfoNorm_2020_09.csv",
+      "processing_date": "2020-09-01",
+      "sha256": "cb75df4ced7e47ac54a89c963c4c3c362e3d8cd3f5ca676f83ef3827e6664bc8",
+      "row_count": 15361
+    },
+    {
+      "pbj_quarter": "2020Q2",
+      "source_filename": "ProviderInfoNorm_2020_12.csv",
+      "processing_date": "2020-11-01",
+      "sha256": "c1f26748109c869452bd8aed83c15daa7bc49b92609aa061c1d5919ad7d1fabe",
+      "row_count": 15348
+    },
+    {
+      "pbj_quarter": "2020Q3",
+      "source_filename": "ProviderInfoNorm_2021_03.csv",
+      "processing_date": "2021-03-01",
+      "sha256": "a98c6549c41c36a37fd22c551db014c420f82eb220b50c200021b3a733361826",
+      "row_count": 15331
+    },
+    {
+      "pbj_quarter": "2020Q4",
+      "source_filename": "ProviderInfoNorm_2021_06.csv",
+      "processing_date": "2021-06-01",
+      "sha256": "d5507e013538f3fb785f2c02eee9124f5f9048ae5dadfe2b3629d3dd8b67dd72",
+      "row_count": 15302
+    },
+    {
+      "pbj_quarter": "2021Q1",
+      "source_filename": "ProviderInfoNorm_2021_09.csv",
+      "processing_date": "2021-09-01",
+      "sha256": "caef32c09cac494ad7f9104b94dba9069fce7a5a5bf3c5d4390939ac807bc349",
+      "row_count": 15266
+    },
+    {
+      "pbj_quarter": "2021Q2",
+      "source_filename": "ProviderInfoNorm_2021_12.csv",
+      "processing_date": "2021-11-01",
+      "sha256": "a804e51aedf2d06b0fd19802d40adc9ea73061ab09bd532d4e9ec82340256d28",
+      "row_count": 15264
+    },
+    {
+      "pbj_quarter": "2021Q3",
+      "source_filename": "ProviderInfoNorm_2022_03.csv",
+      "processing_date": "2022-03-01",
+      "sha256": "8909bc1906b8ecb733bf4aa5d6b0a6f2c807333870819b71610afd177f32adb4",
+      "row_count": 15216
+    },
+    {
+      "pbj_quarter": "2021Q4",
+      "source_filename": "ProviderInfoNorm_2022_06.csv",
+      "processing_date": "2022-06-01",
+      "sha256": "46b5b6ee579cbd937f326fac968bd7b6ef833dadb17191bd971f88f1db9044b6",
+      "row_count": 15190
+    },
+    {
+      "pbj_quarter": "2022Q1",
+      "source_filename": "ProviderInfoNorm_2022_09.csv",
+      "processing_date": "2022-09-01",
+      "sha256": "13b497094726feb5580b70119c5fa600cd0b2c6b830dd84432a9b12c3571ec7e",
+      "row_count": 15151
+    },
+    {
+      "pbj_quarter": "2022Q2",
+      "source_filename": "ProviderInfoNorm_2022_12.csv",
+      "processing_date": "2022-11-01",
+      "sha256": "90a8b0ea15ecc45b8cc3928b4e7c88e1a71ffb2cdc35e77fbe059d2c2a4af8e4",
+      "row_count": 15136
+    },
+    {
+      "pbj_quarter": "2022Q3",
+      "source_filename": "ProviderInfoNorm_2023_03.csv",
+      "processing_date": "2023-03-01",
+      "sha256": "5a1024bce04c3a243fa65de642dca71599cecae27ad37c0f061a064b382e7d3b",
+      "row_count": 15082
+    },
+    {
+      "pbj_quarter": "2022Q4",
+      "source_filename": "ProviderInfoNorm_2023_06.csv",
+      "processing_date": "2023-06-01",
+      "sha256": "44b77308623b6a6325bd8a801f69ab3c8218809a521c8c71589a4813a3b1b558",
+      "row_count": 15018
+    },
+    {
+      "pbj_quarter": "2023Q1",
+      "source_filename": "ProviderInfoNorm_2023_09.csv",
+      "processing_date": "2023-09-01",
+      "sha256": "1f6673063bb31e827b7136214e8065ee63898bd359fe4568389c0e5db6957c59",
+      "row_count": 14956
+    },
+    {
+      "pbj_quarter": "2023Q2",
+      "source_filename": "ProviderInfoNorm_2023_12.csv",
+      "processing_date": "2023-11-01",
+      "sha256": "4979fa95077e510eb8edd9307e49ab05f6a1e19462cb484e26b279285dbe3a0f",
+      "row_count": 14924
+    },
+    {
+      "pbj_quarter": "2023Q3",
+      "source_filename": "ProviderInfoNorm_2024_06.csv",
+      "processing_date": "2024-06-01",
+      "sha256": "8e72e1b619b76f588a6e739ea0a3a9832eee8b53c7cbef3d44124df019d3f663",
+      "row_count": 14845
+    },
+    {
+      "pbj_quarter": "2024Q1",
+      "source_filename": "ProviderInfoNorm_2024_09.csv",
+      "processing_date": "2024-09-01",
+      "sha256": "6f0c67949690f8fc8aadeec3ced25e330fcb7101d7cf4f759a3b06f9c39c6ad4",
+      "row_count": 14817
+    },
+    {
+      "pbj_quarter": "2024Q2",
+      "source_filename": "ProviderInfoNorm_2024_12.csv",
+      "processing_date": "2024-11-01",
+      "sha256": "5d5799a3b7077e50fcb6aa556987182d880f24bb5b1bab1b9da5a6dc1717b51b",
+      "row_count": 14807
+    },
+    {
+      "pbj_quarter": "2024Q3",
+      "source_filename": "ProviderInfoNorm_2025_03.csv",
+      "processing_date": "2025-03-01",
+      "sha256": "777f87ec0c6f57e94d82e1365d7030bb0051962cc8a5696bd924aad84d730443",
+      "row_count": 14779
+    },
+    {
+      "pbj_quarter": "2024Q4",
+      "source_filename": "ProviderInfoNorm_2025_06.csv",
+      "processing_date": "2025-06-01",
+      "sha256": "1ce1476ea9f00a6b9b8ee1a5210935fbc89eca424b31b232cc190c2fe72e39f3",
+      "row_count": 14754
+    },
+    {
+      "pbj_quarter": "2025Q1",
+      "source_filename": "ProviderInfoNorm_2025_09.csv",
+      "processing_date": "2025-09-01",
+      "sha256": "68618539c833f2c5011e68f20df1f41b85c131d4c0c41f325c77ed2e032977d9",
+      "row_count": 14752
+    },
+    {
+      "pbj_quarter": "2025Q2",
+      "source_filename": "ProviderInfoNorm_2025_12.csv",
+      "processing_date": "2025-12-01",
+      "sha256": "7a515651caa4f646f37d25803a31d7b98ef39fef4e9dbb8cabad81935670db43",
+      "row_count": 14713
+    },
+    {
+      "pbj_quarter": "2025Q3",
+      "source_filename": "ProviderInfoNorm_2026_03.csv",
+      "processing_date": "2026-03-01",
+      "sha256": "d81a254df590912b0e804a4c132e7522c1d22b9044242f2ac8b3b2545f0ef6fc",
+      "row_count": 14703
+    },
+    {
+      "pbj_quarter": "2025Q4",
+      "source_filename": "ProviderInfoNorm_2026_06.csv",
+      "processing_date": "2026-06-01",
+      "sha256": "a72e227f0f5e67aee2aefc22da7bf8ac654aed5d8253810f761a1d06001fb5b9",
+      "row_count": 14695
+    },
+    {
+      "pbj_quarter": "2026Q1",
+      "source_filename": "ProviderInfoNorm_2026_08.csv",
+      "processing_date": "2026-08-01",
+      "sha256": "fc48727dddfde1254ec55a813cafa232aaf12dd4e63e4f9e2a237e8187a7775f",
+      "row_count": 14690
+    }
+  ],
+  "validation": {
+    "unique_ccn_quarter_pairs": true,
+    "processing_date_parseable": true,
+    "processing_date_within_bounds": true
+  }
+}

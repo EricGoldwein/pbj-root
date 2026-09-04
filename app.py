@@ -9079,6 +9079,95 @@ def _ensure_state_case_mix_medians(raw_quarter: str) -> dict[str, float]:
     return medians
 
 
+_PROVIDER_INFO_HISTORY_PATH = os.path.join(APP_ROOT, 'data', 'derived', 'provider_info_history.parquet')
+_PROVIDER_INFO_HISTORY_CACHE = None  # DataFrame indexed by (ccn, pbj_quarter), or False if unavailable
+_PROVIDER_INFO_HISTORY_QUARTERS_CACHE = None  # sorted list of quarter_cy strings present in the artifact
+
+
+def _load_provider_info_history_artifact(force_refresh: bool = False):
+    """Load the compact historical Provider Info artifact (see scripts/build_provider_info_history.py).
+
+    Extends quarter coverage PAST what's discoverable from live provider_info/
+    snapshots (that folder only carries a rolling window of recent months) --
+    this is a periodically-rebuilt, checked-in Parquet file, not something
+    fetched live. Returns None (cached as False) when the file is absent or
+    pandas/pyarrow can't read it, so callers degrade to "no historical match"
+    rather than erroring -- this artifact is a coverage EXTENSION, never a
+    hard dependency of the live resolver path.
+    """
+    global _PROVIDER_INFO_HISTORY_CACHE, _PROVIDER_INFO_HISTORY_QUARTERS_CACHE
+    if not force_refresh and _PROVIDER_INFO_HISTORY_CACHE is not None:
+        return _PROVIDER_INFO_HISTORY_CACHE if _PROVIDER_INFO_HISTORY_CACHE is not False else None
+    if get_pd() is None or not os.path.isfile(_PROVIDER_INFO_HISTORY_PATH):
+        _PROVIDER_INFO_HISTORY_CACHE = False
+        _PROVIDER_INFO_HISTORY_QUARTERS_CACHE = []
+        return None
+    try:
+        df = pd.read_parquet(_PROVIDER_INFO_HISTORY_PATH, engine='pyarrow')
+        # Low/moderate-cardinality columns as category dtype: ~484k rows of repeated
+        # Python string objects (34 quarters, ~34 source files, 51 states, a handful of
+        # rating/status codes -- even ccn repeats ~30x) cost ~3x the memory of the
+        # equivalent category-coded columns. Measured: 257 MB -> 84 MB deep memory
+        # for this artifact. Loaded lazily (only when a request needs a quarter/CCN
+        # the live provider_info/ snapshot window doesn't cover), never at app startup.
+        for col in (
+            'ccn', 'pbj_quarter', 'processing_date', 'source_filename', 'state',
+            'sff_status', 'abuse_icon', 'provider_changed_ownership_in_last_12_months',
+        ):
+            if col in df.columns:
+                df[col] = df[col].astype('category')
+        df = df.set_index(['ccn', 'pbj_quarter'], drop=False).sort_index()
+        _PROVIDER_INFO_HISTORY_CACHE = df
+        _PROVIDER_INFO_HISTORY_QUARTERS_CACHE = sorted(
+            df['pbj_quarter'].unique().tolist(), key=lambda q: _quarter_cy_sort_key(q) or (0, 0)
+        )
+        return df
+    except Exception as e:
+        print(f"[PROVIDER_INFO_HISTORY] failed to load {_PROVIDER_INFO_HISTORY_PATH}: {e}")
+        _PROVIDER_INFO_HISTORY_CACHE = False
+        _PROVIDER_INFO_HISTORY_QUARTERS_CACHE = []
+        return None
+
+
+def _historical_provider_info_row_for_ccn_quarter(ccn: str, raw_quarter: str) -> dict | None:
+    """Fallback lookup against the historical Parquet artifact: exact quarter match,
+    else the nearest PRIOR quarter present in the artifact -- never a later one. Mirrors
+    resolve_provider_info_snapshot_path_for_quarter's semantics exactly, against a different
+    (older, wider-coverage) source. Only consulted after the live provider_info/ snapshot
+    scan finds nothing for this (ccn, quarter) -- see get_provider_info_for_quarter.
+    """
+    df = _load_provider_info_history_artifact()
+    if df is None:
+        return None
+    target_key = _quarter_cy_sort_key(raw_quarter)
+    if target_key is None:
+        return None
+    ccn = str(ccn or '').strip().zfill(6)
+    target_cy = f'{target_key[0]}Q{target_key[1]}'
+    quarters = _PROVIDER_INFO_HISTORY_QUARTERS_CACHE or []
+    match_cy = None
+    if (ccn, target_cy) in df.index:
+        match_cy = target_cy
+    else:
+        best_key = None
+        for q_cy in quarters:
+            k = _quarter_cy_sort_key(q_cy)
+            if k is None or k >= target_key:
+                continue
+            if (ccn, q_cy) not in df.index:
+                continue
+            if best_key is None or k > best_key:
+                best_key = k
+                match_cy = q_cy
+    if match_cy is None:
+        return None
+    row = df.loc[(ccn, match_cy)]
+    out = row.to_dict()
+    out['_source'] = 'historical_archive'
+    out['_matched_quarter'] = match_cy
+    return out
+
+
 def _scan_provider_row_for_ccn_quarter(ccn: str, raw_quarter: str) -> dict | None:
     """Return one provider-info row for CCN+quarter without building the national index.
 
@@ -9305,8 +9394,12 @@ def _enrich_provider_quarter_row_from_combined(ccn: str, raw_quarter: str, row: 
 def get_provider_info_for_quarter(ccn, raw_quarter):
     """Return provider info row for the given CCN and quarter (CY_Qtr form e.g. 2025Q3), or None.
 
-    Quarter-exact lookup only — no latest-snapshot fallback (that backfilled case-mix on historic public rows).
-    Public exports apply the case-mix export rule separately via ``_public_case_mix_quarters_for_facility``.
+    Quarter-exact lookup first (live provider_info/ snapshots); no latest-snapshot fallback
+    (that backfilled case-mix on historic public rows). When the live snapshots have no
+    coverage for this (ccn, quarter) at all -- they only carry a rolling recent window --
+    falls back to the historical Parquet artifact (exact-then-prior-quarter, never future;
+    see _historical_provider_info_row_for_ccn_quarter). Public exports apply the case-mix
+    export rule separately via ``_public_case_mix_quarters_for_facility``.
     """
     if not ccn or not raw_quarter:
         return None
@@ -9319,7 +9412,125 @@ def get_provider_info_for_quarter(ccn, raw_quarter):
             return _enrich_provider_quarter_row_from_combined(key[0], key[1], hit)
         # Stale cache rows predate footnote columns — fall through to CSV scan.
     hit = _scan_provider_row_for_ccn_quarter(key[0], key[1])
+    if hit is None:
+        hit = _historical_provider_info_row_for_ccn_quarter(key[0], key[1])
     return _enrich_provider_quarter_row_from_combined(key[0], key[1], hit)
+
+
+# ---------------------------------------------------------------------------
+# Explicit CURRENT vs PERIOD_MATCHED contract.
+#
+# get_provider_info_for_quarter() and _provider_info_row_for_ccn() (defined far
+# below, near the ownership/portfolio code) are both still valid, unchanged call
+# sites -- this wrapper does not replace them, it names the choice a caller is
+# making explicitly, so a future call site can't accidentally read as "generic
+# provider info" when it actually means one specific semantic. See
+# PROVIDER_INFO_FIELD_SEMANTICS.md for which fields make sense under which
+# semantic (identity fields under PERIOD_MATCHED still describe the CCN's
+# *current* name/address -- Provider Info doesn't version those).
+class ProviderInfoResolution:
+    """Result of resolving a Provider Info value under an explicit temporal semantic.
+
+    Attributes:
+        semantic: 'current' or 'period_matched'.
+        ccn: normalized 6-digit CCN.
+        requested_quarter: the PBJ quarter asked for ('period_matched' only, else None).
+        matched_quarter: the PBJ quarter the returned value actually describes
+            ('period_matched' only; equals requested_quarter on an exact hit, an
+            earlier quarter on a prior-vintage fallback, or None on a total miss).
+        value: the resolved row (dict), or None if nothing was found.
+        source_kind: 'live_snapshot' (provider_info/ recent monthly file),
+            'historical_archive' (data/derived/provider_info_history.parquet),
+            'current_snapshot' (current/latest path), or None on a miss.
+        processing_date: CMS processing date of the selected source, if known.
+        source_filename: originating CMS file name, if known.
+        selection_reason: short human-readable provenance sentence.
+        is_gap: True when no defensible value exists for this request (never
+            filled by guessing, interpolating, or borrowing a later quarter).
+    """
+
+    __slots__ = (
+        'semantic', 'ccn', 'requested_quarter', 'matched_quarter', 'value',
+        'source_kind', 'processing_date', 'source_filename', 'selection_reason', 'is_gap',
+    )
+
+    def __init__(self, **kwargs):
+        for slot in self.__slots__:
+            setattr(self, slot, kwargs.get(slot))
+        if self.is_gap is None:
+            self.is_gap = self.value is None
+
+
+def resolve_provider_info_current(ccn: str) -> ProviderInfoResolution:
+    """CURRENT semantic: whatever CMS's newest Provider Info release reports for this CCN today.
+
+    Independent of any PBJ quarter. Use for facility identity fields (name, address,
+    phone), ownership-portfolio views, and anywhere "what does CMS say right now"
+    is the intended meaning -- never for a historical chart or a quarter-scoped export.
+    """
+    ccn_n = normalize_ccn(ccn) if ccn else ''
+    if not ccn_n:
+        return ProviderInfoResolution(
+            semantic='current', ccn=ccn, value=None, source_kind=None,
+            selection_reason='No CCN provided.',
+        )
+    row = _provider_info_row_for_ccn(ccn_n)
+    if not row:
+        return ProviderInfoResolution(
+            semantic='current', ccn=ccn_n, value=None, source_kind=None,
+            selection_reason='No current Provider Info row found for this CCN.',
+        )
+    return ProviderInfoResolution(
+        semantic='current', ccn=ccn_n, value=row, source_kind='current_snapshot',
+        processing_date=row.get('processing_date'),
+        selection_reason="CMS's newest available Provider Information release for this CCN.",
+    )
+
+
+def resolve_provider_info_for_period(ccn: str, pbj_quarter: str) -> ProviderInfoResolution:
+    """PERIOD_MATCHED semantic: the Provider Info vintage applicable to one PBJ quarter.
+
+    Resolves the requested quarter independently of every other quarter (never
+    broadcasts a scalar across history, never selects a snapshot tagged later than
+    ``pbj_quarter``). See get_provider_info_for_quarter for the underlying
+    live-snapshot / historical-archive resolution order.
+    """
+    ccn_n = normalize_ccn(ccn) if ccn else ''
+    q = str(pbj_quarter or '').strip()
+    if not ccn_n or not q:
+        return ProviderInfoResolution(
+            semantic='period_matched', ccn=ccn, requested_quarter=q or None, value=None,
+            source_kind=None, selection_reason='Missing CCN or PBJ quarter.',
+        )
+    row = get_provider_info_for_quarter(ccn_n, q)
+    if not row:
+        return ProviderInfoResolution(
+            semantic='period_matched', ccn=ccn_n, requested_quarter=q, value=None,
+            source_kind=None,
+            selection_reason=(
+                f'No Provider Info release maps to PBJ {q} or any earlier quarter for '
+                'this CCN, in either the live snapshot window or the historical archive.'
+            ),
+        )
+    matched_q = row.get('_matched_quarter') or q
+    source_kind = row.get('_source') or 'live_snapshot'
+    if matched_q == q:
+        reason = (
+            f'Canonical Provider Info release for PBJ {q} -- when more than one monthly '
+            'CMS release self-tags this quarter, the one with the latest processing_date wins.'
+        )
+    else:
+        reason = (
+            f'No Provider Info release self-tags PBJ {q}; using the nearest PRIOR quarter '
+            f'with an established release ({matched_q}). Never a later quarter.'
+        )
+    return ProviderInfoResolution(
+        semantic='period_matched', ccn=ccn_n, requested_quarter=q, matched_quarter=matched_q,
+        value=row, source_kind=source_kind,
+        processing_date=row.get('processing_date'),
+        source_filename=row.get('source_filename'),
+        selection_reason=reason,
+    )
 
 
 def get_state_median_case_mix_hprd(state_code, raw_quarter):

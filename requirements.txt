@@ -1,5 +1,6 @@
 streamlit==1.50.0
 pandas==2.2.3
+pyarrow>=14.0.0  # Parquet read/write for data/derived/provider_info_history.parquet
 openpyxl>=3.1.0
 plotly==6.3.0
 duckdb==1.3.0

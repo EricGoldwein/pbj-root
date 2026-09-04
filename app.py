@@ -9570,9 +9570,19 @@ def case_mix_lineage_note(resolution: 'ProviderInfoResolution') -> dict | None:
 
 
 def case_mix_methodology_transition_note_for_quarters(quarters) -> str | None:
-    """Part 5B: one shared note for a chart/table/range that spans the RUG-IV -> PDPM
-    boundary (PBJ 2024Q1). None when every quarter is on the same side of it -- a
-    modern PDPM-only range gets no repeated marker, and neither does an all-legacy range.
+    """One shared note for a chart/table/range that spans the RUG-IV -> PDPM boundary
+    (PBJ 2024Q1). None when every quarter is on the same side of it -- a modern
+    PDPM-only range gets no repeated marker, and neither does an all-legacy range.
+
+    NOT CURRENTLY CALLED FROM ANY PRODUCTION RENDER PATH. Every existing case-mix
+    consumer (the provider page's single-quarter card, the CSV/trend export via
+    _public_case_mix_quarters_for_facility) is deliberately restricted to at most one
+    quarter of case-mix at a time -- none can ever hand this function 2+ quarters, so
+    there is no live surface for it to annotate today. Kept as a tested, ready
+    building block for the day a multi-quarter case-mix surface (a trend chart, an
+    expanded export) actually exists -- do not wire it to a call site that cannot
+    genuinely receive a boundary-crossing quarter list, and do not claim it is "live"
+    without that call site actually existing.
     """
     keys = [k for k in (_quarter_cy_sort_key(q) for q in (quarters or [])) if k is not None]
     if not keys or min(keys) >= _CASE_MIX_METHODOLOGY_BOUNDARY or max(keys) < _CASE_MIX_METHODOLOGY_BOUNDARY:
@@ -9582,6 +9592,39 @@ def case_mix_methodology_transition_note_for_quarters(quarters) -> str | None:
         'first PDPM-based reporting quarter, published in the July 2024 Care Compare refresh '
         '(CMS QSO-24-14-NH). Values before and after this point are not directly comparable.'
     )
+
+
+def _apply_case_mix_lineage_note(rcm_cd: dict, pi_case_mix: dict | None, prov: str, raw_quarter: str | None) -> 'ProviderInfoResolution | None':
+    """Mutate ``rcm_cd`` (chart_data['reportedCaseMix'] -- the exact dict whose
+    'reported'/'caseMix' arrays the provider page's ratio bars are computed from client
+    side, see renderCaseMixHero/renderCaseMixBreakdownRow in _provider_charts_html) with
+    cmiSourceNote/cmiSourceNoteUrl/cmiSourceNoteLabel when this quarter's case-mix value
+    is a prior-quarter fallback. Returns the ProviderInfoResolution used, so the caller
+    can also drive _provider_charts_html's case_mix_methodology param from the same
+    resolution -- one resolve call feeds both the note and the ordinary caveat wording.
+
+    This is the actual function _provider_page_impl calls (extracted so it is directly
+    testable against real resolver data instead of only being exercisable through a full
+    page render) -- proving this function's output on a real (ccn, raw_quarter) proves
+    the real derived-ratio surface, not a hand-rebuilt stand-in for it.
+    """
+    cm_resolution = resolve_provider_info_for_period(prov, raw_quarter) if raw_quarter else None
+    if not isinstance(rcm_cd, dict):
+        return cm_resolution
+    cmi_note = (pi_case_mix or {}).get('_cmi_source_note')
+    if cmi_note:
+        # Field-gap-fill note (CMI backfilled from an older combined-CSV row for this
+        # quarter) takes precedence -- it is about a specific field, not the whole
+        # resolution, and predates the lineage/methodology note below.
+        rcm_cd['cmiSourceNote'] = str(cmi_note).strip()
+        return cm_resolution
+    cm_note = case_mix_lineage_note(cm_resolution)
+    if cm_note:
+        rcm_cd['cmiSourceNote'] = cm_note['text']
+        if cm_note.get('source_url'):
+            rcm_cd['cmiSourceNoteUrl'] = cm_note['source_url']
+            rcm_cd['cmiSourceNoteLabel'] = cm_note.get('source_label')
+    return cm_resolution
 
 
 def resolve_provider_info_current(ccn: str) -> ProviderInfoResolution:
@@ -16687,9 +16730,18 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title='', case_m
     case_mix_methodology: 'RUG-IV' or 'PDPM' (see _case_mix_methodology_for_quarter) for the
     quarter actually shown -- the case-mix caveat/modal copy names the applicable CMS
     methodology instead of hardcoding "PDPM" (an ordinary exact RUG-IV quarter needs this
-    to be accurate, not an extra warning paragraph -- see case_mix_lineage_note's docstring)."""
+    to be accurate, not an extra warning paragraph -- see case_mix_lineage_note's docstring).
+    Unknown/missing methodology (None, or anything other than 'RUG-IV'/'PDPM') does NOT
+    default to PDPM -- confident, specific provenance must not be fabricated for an
+    unresolved quarter. The copy falls back to methodology-neutral wording instead."""
     import json
-    _cm_methodology_label = case_mix_methodology if case_mix_methodology in ('RUG-IV', 'PDPM') else 'PDPM'
+    _cm_known = case_mix_methodology in ('RUG-IV', 'PDPM')
+    # Caveat: "...an acuity metric{clause}. It is not..." -- clause is '' when unknown.
+    _cm_caveat_clause = f' based on {case_mix_methodology}' if _cm_known else ''
+    # Modal para 1: "...resident mix{clause} for the same quarter..." -- clause is '' when unknown.
+    _cm_modal_mix_clause = f' ({case_mix_methodology})' if _cm_known else ''
+    # Modal para 2: "...an acuity benchmark{clause}, not a state..." -- clause is '' when unknown.
+    _cm_modal_benchmark_clause = f' from {case_mix_methodology}' if _cm_known else ''
     try:
         data_esc = json.dumps(chart_data).replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
     except Exception:
@@ -16779,15 +16831,15 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title='', case_m
   </details>
     </div>
   </div>
-  <p class="pbj-casemix-caveat-foot" id="pbjCaseMixCaveat"><span class="pbj-casemix-caveat-text--desktop">CMS case-mix is an acuity metric based on ''' + _cm_methodology_label + '''. It is not a state or federal minimum; the ratio is a reference point, not a measure of whether staffing is sufficient.</span><span class="pbj-casemix-caveat-text--mobile"><button type="button" class="pbj-casemix-inline-help" data-pbj-casemix-help="1">CMS case-mix is an acuity metric</button> based on ''' + _cm_methodology_label + '''. It is not a state or federal minimum; the ratio is a reference point, not a measure of whether staffing is sufficient.</span></p>
+  <p class="pbj-casemix-caveat-foot" id="pbjCaseMixCaveat"><span class="pbj-casemix-caveat-text--desktop">CMS case-mix is an acuity metric''' + _cm_caveat_clause + '''. It is not a state or federal minimum; the ratio is a reference point, not a measure of whether staffing is sufficient.</span><span class="pbj-casemix-caveat-text--mobile"><button type="button" class="pbj-casemix-inline-help" data-pbj-casemix-help="1">CMS case-mix is an acuity metric</button>''' + _cm_caveat_clause + '''. It is not a state or federal minimum; the ratio is a reference point, not a measure of whether staffing is sufficient.</span></p>
   <p class="pbj-casemix-caveat-foot pbj-casemix-source-note" id="pbjCaseMixSourceNote" hidden></p>
 </div>
 <div class="pbj-casemix-modal" id="pbjCaseMixModal" aria-hidden="true">
   <div class="pbj-casemix-modal-card" role="dialog" aria-modal="true" aria-labelledby="pbjCaseMixModalTitle">
     <button type="button" class="pbj-casemix-modal-close" id="pbjCaseMixModalClose" aria-label="Close">×</button>
     <h3 id="pbjCaseMixModalTitle">What is CMS case-mix?</h3>
-    <p><strong>CMS case-mix HPRD</strong> is modeled from the facility&rsquo;s resident mix (''' + _cm_methodology_label + ''') for the same quarter and role.</p>
-    <p>The <strong>bar scale is percent of CMS case-mix</strong>: 100% equals the case-mix HPRD for that role. Reported staffing is the filled portion. Case-mix is an acuity benchmark from ''' + _cm_methodology_label + ''', not a state or federal staffing minimum.</p>
+    <p><strong>CMS case-mix HPRD</strong> is modeled from the facility&rsquo;s resident mix''' + _cm_modal_mix_clause + ''' for the same quarter and role.</p>
+    <p>The <strong>bar scale is percent of CMS case-mix</strong>: 100% equals the case-mix HPRD for that role. Reported staffing is the filled portion. Case-mix is an acuity benchmark''' + _cm_modal_benchmark_clause + ''', not a state or federal staffing minimum.</p>
     <p style="margin-top:0.45rem;font-size:0.78rem;line-height:1.4;color:#94a3b8;"><a href="https://www.cms.gov/medicare/provider-enrollment-and-certification/certificationandcomplianc/downloads/usersguide.pdf" target="_blank" rel="noopener" style="color:#a5b4fc;">CMS Users&rsquo; Guide</a></p>
   </div>
 </div>
@@ -18635,38 +18687,17 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             if _sref:
                 _rcm_cd['cmiStateRef'] = _sref
         _psec('cmi_refs', _t_cmi)
-    # Resolution for the currently-displayed quarter's case-mix lineage: drives both the
-    # exceptional fallback note (below) and the ordinary caveat's RUG-IV/PDPM wording
-    # (_provider_charts_html's case_mix_methodology param) -- computed once, unconditionally,
-    # so an exact RUG-IV quarter gets accurate ordinary copy even when no note is warranted.
-    _cm_resolution = resolve_provider_info_for_period(prov, raw_quarter) if raw_quarter else None
+    # Resolution + note for the currently-displayed quarter's case-mix lineage: drives
+    # both the exceptional fallback note and the ordinary caveat's RUG-IV/PDPM wording
+    # (_provider_charts_html's case_mix_methodology param). This is the ACTUAL function
+    # the live page calls (see _apply_case_mix_lineage_note's docstring for why it is
+    # split out) -- a test exercising it is exercising the real derived-ratio-adjacent
+    # wiring, not a hand-rebuilt copy of it.
     if isinstance(_rcm_cd, dict):
         _rcm_cd['facilityName'] = (facility_name or '').strip()
-        _cmi_note = (pi_case_mix or {}).get('_cmi_source_note')
-        if _cmi_note:
-            # Field-gap-fill note (CMI backfilled from an older combined-CSV row for this
-            # quarter) takes precedence -- it is about a specific field, not the whole
-            # resolution, and predates the lineage/methodology note below.
-            _rcm_cd['cmiSourceNote'] = str(_cmi_note).strip()
-        else:
-            _cm_note = case_mix_lineage_note(_cm_resolution)
-            if _cm_note:
-                _rcm_cd['cmiSourceNote'] = _cm_note['text']
-                if _cm_note.get('source_url'):
-                    _rcm_cd['cmiSourceNoteUrl'] = _cm_note['source_url']
-                    _rcm_cd['cmiSourceNoteLabel'] = _cm_note.get('source_label')
-            else:
-                # Lowest priority: this facility's own case-mix EXPORT quarter set (the
-                # same _public_case_mix_quarters_for_facility eligibility rule the CSV/
-                # trend exports use -- a real production computation, not a hypothetical
-                # one) spans the RUG-IV -> PDPM boundary. Always empty today (case-mix
-                # export is deliberately limited to the single latest quarter everywhere
-                # in this codebase -- include_previous=True is never passed), so this
-                # correctly stays silent now and activates the moment that changes.
-                _cm_export_quarters = _public_case_mix_quarters_for_facility(facility_df)
-                _cm_range_note = case_mix_methodology_transition_note_for_quarters(_cm_export_quarters)
-                if _cm_range_note:
-                    _rcm_cd['cmiSourceNote'] = _cm_range_note
+        _cm_resolution = _apply_case_mix_lineage_note(_rcm_cd, pi_case_mix, prov, raw_quarter)
+    else:
+        _cm_resolution = resolve_provider_info_for_period(prov, raw_quarter) if raw_quarter else None
     _t_pct = time.perf_counter()
     # Missing HPRD must not coerce to 0 (would fabricate bottom-percentile claims).
     state_percentile_total, _ = get_facility_state_percentile(

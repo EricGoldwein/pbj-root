@@ -276,11 +276,25 @@ class CaveatMethodologyAwareTests(unittest.TestCase):
         self.assertIn('based on PDPM', html)
         self.assertNotIn('based on RUG-IV', html)
 
-    def test_missing_methodology_defaults_to_pdpm_current_behavior(self) -> None:
-        # Callers that don't pass case_mix_methodology (or resolve nothing, e.g. no
-        # raw_quarter) keep today's default -- no regression for existing call sites.
+    def test_unknown_methodology_does_not_default_to_pdpm(self) -> None:
+        # Evidence Lineage rule: unresolved provenance must not become confident PDPM
+        # (or RUG-IV) by default. Neutral copy, methodology clause omitted entirely.
         html = self._rendered(None)
-        self.assertIn('based on PDPM', html)
+        self.assertNotIn('based on PDPM', html)
+        self.assertNotIn('based on RUG-IV', html)
+        self.assertIn('CMS case-mix is an acuity metric.', html)
+
+    def test_unknown_methodology_modal_copy_is_also_neutral(self) -> None:
+        html = self._rendered(None)
+        self.assertIn('resident mix for the same quarter and role.', html)
+        self.assertIn('acuity benchmark, not a state or federal staffing minimum.', html)
+        self.assertNotIn('(PDPM)', html)
+        self.assertNotIn('(RUG-IV)', html)
+
+    def test_garbage_methodology_value_also_treated_as_unknown(self) -> None:
+        html = self._rendered('some-unrecognized-value')
+        self.assertNotIn('based on PDPM', html)
+        self.assertNotIn('based on some-unrecognized-value', html)
 
     def test_rug_iv_quarter_has_no_redundant_second_paragraph(self) -> None:
         # Part 3: no separate corrective "this value uses RUG-IV" paragraph stacked
@@ -290,35 +304,34 @@ class CaveatMethodologyAwareTests(unittest.TestCase):
         self.assertNotIn('This case-mix value uses', html)
 
 
-class RealPathTransitionWiringTests(unittest.TestCase):
-    """Part 6 minimum contract: the transition-range helper is exercised through the
-    actual production functions it is wired to (_public_case_mix_quarters_for_facility,
-    the same eligibility rule the CSV/trend exports use), not only unit-tested in
-    isolation. Confirms both silence under today's real single-quarter export policy
-    and correct firing the moment a caller passes include_previous=True."""
+class TransitionHelperIsExplicitlyDormantTests(unittest.TestCase):
+    """Corrected Part 1: the previous pass wired the transition-range helper into the
+    provider page using _public_case_mix_quarters_for_facility(facility_df) with the
+    default include_previous=False -- a call that can never return 2+ quarters, so the
+    "activates the moment include_previous changes" claim was false (no real call site
+    shares that flag/state with any exporter). That dead wiring has been removed.
+    case_mix_methodology_transition_note_for_quarters is kept only as an explicitly
+    dormant, tested utility (see its docstring) -- these tests prove it is NOT reachable
+    from _apply_case_mix_lineage_note (the actual function the provider page calls),
+    rather than asserting a hypothetical activation path that does not exist."""
 
-    def _facility_df(self, quarters):
-        return pd.DataFrame({'CY_Qtr': quarters})
+    def test_transition_helper_not_referenced_by_the_real_note_function(self) -> None:
+        import inspect
 
-    def test_default_export_eligibility_never_spans_the_boundary(self) -> None:
-        # Real call, default args (include_previous=False, what every current
-        # production caller uses) -- always exactly one quarter, so the transition
-        # helper it feeds correctly stays silent today.
-        fac = self._facility_df(['2023Q1', '2023Q2', '2023Q3', '2024Q1', '2024Q2'])
-        quarters = app_mod._public_case_mix_quarters_for_facility(fac)
-        self.assertEqual(len(quarters), 1)
-        note = app_mod.case_mix_methodology_transition_note_for_quarters(quarters)
-        self.assertIsNone(note)
+        src = inspect.getsource(app_mod._apply_case_mix_lineage_note)
+        self.assertNotIn('case_mix_methodology_transition_note_for_quarters', src)
+        self.assertNotIn('_public_case_mix_quarters_for_facility', src)
 
-    def test_include_previous_eligibility_fires_when_it_spans_the_boundary(self) -> None:
-        # Same real eligibility function, include_previous=True (what a future/expanded
-        # export caller would pass) -- the latest two quarters straddle 2024Q1, so the
-        # composition of the two real production functions correctly produces a note.
-        fac = self._facility_df(['2022Q1', '2022Q2', '2023Q3', '2024Q1'])
-        quarters = app_mod._public_case_mix_quarters_for_facility(fac, include_previous=True)
-        self.assertEqual(quarters, {'2023Q3', '2024Q1'})
-        note = app_mod.case_mix_methodology_transition_note_for_quarters(quarters)
+    def test_transition_helper_remains_correct_as_a_standalone_utility(self) -> None:
+        # Still directly testable and correct on its own -- just not called from any
+        # render path today. See its docstring for what would need to exist to wire it.
+        note = app_mod.case_mix_methodology_transition_note_for_quarters(
+            ['2023Q3', '2024Q1']
+        )
         self.assertIsNotNone(note)
+        self.assertIsNone(
+            app_mod.case_mix_methodology_transition_note_for_quarters(['2024Q1', '2024Q2'])
+        )
 
 
 class AggregateAndStateReferenceAuditTests(unittest.TestCase):
@@ -381,34 +394,97 @@ class AggregateAndStateReferenceAuditTests(unittest.TestCase):
 
 
 class CaseMixRatioPropagationTests(unittest.TestCase):
-    """Part 5 / "ONE MORE THING" #2: the provider page's reported-vs-case-mix ratio bars
-    (percent of CMS case-mix HPRD) combine a PBJ-sourced reported value and a Provider-
-    Info-sourced case-mix value for the SAME requested quarter -- proves the case-mix
-    side's lineage (matched quarter / resolution status / methodology / calculation
-    origin) is resolvable from the exact same (ccn, raw_quarter) the ratio bars use, so
-    a 2023Q4 ratio can be labeled truthfully rather than silently presented as exact."""
+    """Part 2 (strengthened) / "ONE MORE THING" #2: proves the ACTUAL derived-ratio
+    surface -- chart_data['reportedCaseMix'], the exact dict renderCaseMixHero /
+    renderCaseMixBreakdownRow compute the reported/case-mix percentage bars from client
+    side, and the exact dict this repo's provider page serializes into the page's
+    embedded JSON payload -- carries the fallback/methodology distinction, not merely
+    that a separate resolver call can rediscover it.
+
+    Builds the real chart_data via _provider_charts_chartjs_data using the real,
+    resolver-sourced case-mix inputs for CCN 075325 / PBJ 2023Q4 (a genuine
+    prior-quarter fallback to 2023Q3, RUG-IV), then runs it through
+    _apply_case_mix_lineage_note -- the actual function the live provider page calls --
+    and inspects the resulting payload."""
 
     def setUp(self) -> None:
         _reset_caches()
 
     tearDown = setUp
 
-    def test_case_mix_side_of_the_ratio_retains_full_lineage_on_a_fallback_quarter(self) -> None:
-        ccn, raw_quarter = '075325', '2023Q4'
-        # This mirrors the real provider-page call: case-mix HPRD inputs to the ratio
-        # bars come from get_provider_info_for_quarter(ccn, raw_quarter) (pi_case_mix).
+    def _real_reported_case_mix_payload(self, ccn: str, raw_quarter: str) -> tuple[dict, dict]:
+        """Reproduces the real provider-page call sequence: PBJ staffing (reported_*)
+        for raw_quarter, Provider Info case-mix (pi_case_mix) for the SAME raw_quarter,
+        both fed into the real _provider_charts_chartjs_data -- returns
+        (chart_data['reportedCaseMix'], pi_case_mix)."""
         pi_case_mix = app_mod.get_provider_info_for_quarter(ccn, raw_quarter)
         case_mix_total = pi_case_mix.get('case_mix_total_nurse_hrs_per_resident_per_day')
-        self.assertIsNotNone(case_mix_total, 'fixture must actually exercise a populated case-mix value')
-        # The lineage contract is resolvable from the identical (ccn, raw_quarter) pair --
-        # nothing about computing the ratio discards the ability to label it.
-        res = app_mod.resolve_provider_info_for_period(ccn, raw_quarter)
-        self.assertEqual(res.requested_quarter, '2023Q4')
-        self.assertEqual(res.matched_quarter, '2023Q3')
-        self.assertEqual(res.resolution_status, 'prior_fallback')
-        self.assertEqual(res.case_mix_methodology, 'RUG-IV')
-        note = app_mod.case_mix_lineage_note(res)
-        self.assertIsNotNone(note)
+        case_mix_rn = pi_case_mix.get('case_mix_rn_hrs_per_resident_per_day')
+        case_mix_lpn = pi_case_mix.get('case_mix_lpn_hrs_per_resident_per_day')
+        case_mix_na = pi_case_mix.get('case_mix_na_hrs_per_resident_per_day')
+        case_mix_index = pi_case_mix.get('nursing_case_mix_index')
+        case_mix_index_ratio = pi_case_mix.get('nursing_case_mix_index_ratio')
+        fac = pd.DataFrame([{
+            'CY_Qtr': raw_quarter, 'Total_Nurse_HPRD': 4.1, 'Nurse_Care_HPRD': 3.6,
+            'RN_HPRD': 0.62, 'RN_Care_HPRD': 0.5, 'LPN_HPRD': 1.05, 'LPN_Care_HPRD': 0.9,
+            'Nurse_Assistant_HPRD': 2.4, 'Contract_Percentage': 0.0, 'avg_daily_census': 84.0,
+        }])
+        # reported_* below is the PBJ-sourced side of the ratio (raw_quarter, same as the
+        # case-mix side) -- mirrors the real page's `reported_total = get_val('Total_Nurse_HPRD')`
+        # etc. built for this exact quarter.
+        chart_data = app_mod._provider_charts_chartjs_data(
+            fac, 'CT', 4.1, 0.62, 1.05, 2.4,
+            case_mix_total, case_mix_rn, case_mix_lpn, case_mix_na,
+            case_mix_index=case_mix_index, case_mix_index_ratio=case_mix_index_ratio,
+            ccn=ccn,
+        )
+        return chart_data['reportedCaseMix'], pi_case_mix
+
+    def test_ratio_surface_case_mix_input_matches_the_fallback_source_value(self) -> None:
+        ccn, raw_quarter = '075325', '2023Q4'
+        rcm_cd, pi_case_mix = self._real_reported_case_mix_payload(ccn, raw_quarter)
+        expected = float(pi_case_mix['case_mix_total_nurse_hrs_per_resident_per_day'])
+        self.assertAlmostEqual(rcm_cd['caseMix'][0], round(expected, 2), places=2)
+        # The archive's real 2023Q3 case-mix HPRD for this CCN -- not a placeholder --
+        # proving the ratio's denominator is genuinely the resolved fallback value.
+        self.assertIsNotNone(rcm_cd['caseMix'][0])
+
+    def test_ratio_surface_carries_the_prior_fallback_note_after_real_wiring_call(self) -> None:
+        ccn, raw_quarter = '075325', '2023Q4'
+        rcm_cd, pi_case_mix = self._real_reported_case_mix_payload(ccn, raw_quarter)
+        # _apply_case_mix_lineage_note is the actual function _provider_page_impl calls --
+        # this is not a hand-rebuilt copy of the note logic.
+        resolution = app_mod._apply_case_mix_lineage_note(rcm_cd, pi_case_mix, ccn, raw_quarter)
+        self.assertEqual(resolution.requested_quarter, '2023Q4')
+        self.assertEqual(resolution.matched_quarter, '2023Q3')
+        self.assertEqual(resolution.resolution_status, 'prior_fallback')
+        self.assertEqual(resolution.case_mix_methodology, 'RUG-IV')
+        # The note text and URL actually landed on the SAME dict whose 'caseMix' array
+        # the ratio bars are built from -- not a separate, disconnected payload.
+        self.assertIn('cmiSourceNote', rcm_cd)
+        self.assertIn('Q4 2023', rcm_cd['cmiSourceNote'])
+        self.assertIn('Q3 2023', rcm_cd['cmiSourceNote'])
+        self.assertEqual(rcm_cd.get('cmiSourceNoteUrl'), app_mod.CMS_QSO_24_14_NH_URL)
+
+    def test_ratio_surface_has_no_note_on_an_ordinary_exact_pdpm_quarter(self) -> None:
+        ccn, raw_quarter = '075325', '2026Q1'
+        rcm_cd, pi_case_mix = self._real_reported_case_mix_payload(ccn, raw_quarter)
+        resolution = app_mod._apply_case_mix_lineage_note(rcm_cd, pi_case_mix, ccn, raw_quarter)
+        self.assertEqual(resolution.resolution_status, 'exact')
+        self.assertNotIn('cmiSourceNote', rcm_cd)
+
+    def test_ratio_itself_is_pbj320_calculated_not_a_cms_supplied_field(self) -> None:
+        # calculation_origin=pbj320_derived for the ratio: chart_data never carries a
+        # pre-computed ratio/percentage -- only the two independent raw inputs (reported,
+        # caseMix). The percentage is computed downstream (renderCaseMixHero /
+        # renderCaseMixBreakdownRow, ratio = actual / caseMix) -- CMS supplies neither
+        # input as a ratio, so nothing here could be mistaken for a CMS-published figure.
+        ccn, raw_quarter = '075325', '2023Q4'
+        rcm_cd, _ = self._real_reported_case_mix_payload(ccn, raw_quarter)
+        self.assertNotIn('ratio', rcm_cd)
+        self.assertNotIn('caseMixRatio', rcm_cd)
+        self.assertIn('reported', rcm_cd)
+        self.assertIn('caseMix', rcm_cd)
 
     def test_case_mix_side_of_the_ratio_is_exact_on_an_ordinary_quarter(self) -> None:
         ccn, raw_quarter = '075325', '2026Q1'

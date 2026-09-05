@@ -80,6 +80,15 @@ VALUE_COLUMNS = [
 KEY_COLUMNS = ["ccn", "pbj_quarter", "processing_date", "source_filename"]
 ALL_OUTPUT_COLUMNS = KEY_COLUMNS + VALUE_COLUMNS
 
+# Small row groups (data is sorted by ccn just before write, below) so a runtime
+# per-CCN predicate-pushdown read (app.py's _load_provider_info_history_rows_for_ccn,
+# filters=[('ccn','==',ccn)]) can skip row groups outside that CCN's contiguous range
+# instead of decoding the whole ~484k-row file. Measured: a single row group (pyarrow's
+# default for a file this size) forces a full-file decode even with filters= (~200MB+
+# transient per lookup); row_group_size=2000 (~240 groups for the current archive) cuts
+# a single-CCN filtered read to a ~30-50MB transient, no permanent resident growth.
+PARQUET_ROW_GROUP_SIZE = 2000
+
 _QUARTER_DISPLAY_RE = re.compile(r"^Q([1-4])\s*(\d{4})$", re.IGNORECASE)
 _QUARTER_CY_RE = re.compile(r"^(\d{4})Q([1-4])$")
 
@@ -243,7 +252,13 @@ def build(source_dir: Path, output_parquet: Path, output_manifest: Path) -> dict
     combined = combined.sort_values(["ccn", "pbj_quarter"]).reset_index(drop=True)
 
     output_parquet.parent.mkdir(parents=True, exist_ok=True)
-    combined.to_parquet(output_parquet, engine="pyarrow", compression="snappy", index=False)
+    combined.to_parquet(
+        output_parquet,
+        engine="pyarrow",
+        compression="snappy",
+        index=False,
+        row_group_size=PARQUET_ROW_GROUP_SIZE,
+    )
 
     quarters_covered = sorted(combined["pbj_quarter"].unique().tolist(), key=_quarter_sort_key)
     manifest = {

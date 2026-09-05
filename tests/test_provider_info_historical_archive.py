@@ -37,8 +37,7 @@ def _reset_caches() -> None:
     app_mod._LOAD_PROVIDER_INFO_AT = 0
     app_mod._PROVIDER_SNAPSHOT_QUARTER_REGISTRY_CACHE = None
     app_mod._PROVIDER_SNAPSHOT_QUARTER_REGISTRY_AT = 0.0
-    app_mod._PROVIDER_INFO_HISTORY_CACHE = None
-    app_mod._PROVIDER_INFO_HISTORY_QUARTERS_CACHE = None
+    app_mod._clear_provider_info_history_cache()
 
 
 @unittest.skipUnless(ARTIFACT_PATH.is_file(), "historical artifact not built in this worktree")

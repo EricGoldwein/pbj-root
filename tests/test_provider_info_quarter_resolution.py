@@ -79,6 +79,7 @@ class _SyntheticProviderInfoTestCase(unittest.TestCase):
         app_mod._LOAD_PROVIDER_INFO_AT = 0
         app_mod._PROVIDER_SNAPSHOT_QUARTER_REGISTRY_CACHE = None
         app_mod._PROVIDER_SNAPSHOT_QUARTER_REGISTRY_AT = 0.0
+        app_mod._clear_provider_info_history_cache()
 
     def _snapshot(self, filename, *, quarter, processing_date, rows):
         _write_snapshot(self._provider_dir, filename, quarter=quarter, processing_date=processing_date, rows=rows)
@@ -319,6 +320,7 @@ class HistoricalCertifiedBedsChartSeriesTests(unittest.TestCase):
         app_mod._LOAD_PROVIDER_INFO_AT = 0
         app_mod._PROVIDER_SNAPSHOT_QUARTER_REGISTRY_CACHE = None
         app_mod._PROVIDER_SNAPSHOT_QUARTER_REGISTRY_AT = 0.0
+        app_mod._clear_provider_info_history_cache()
         app_mod.get_pd()
 
     tearDown = setUp

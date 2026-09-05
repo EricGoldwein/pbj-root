@@ -147,6 +147,7 @@ from utils.memory_debug import (
     summarize_byte_sizes,
     utf8_text_bytes,
 )
+from utils.malloc_trim import maybe_trim as _maybe_malloc_trim
 
 # Memory debugging — PBJ_MEM_DEBUG=1 for verbose [MEM] labels; PBJ_MEM_ROUTE_LOG=1 for route lines.
 try:
@@ -6996,6 +6997,7 @@ def cms_owner_profile_page(owner_id, requested_slug=None):
                 503,
             )
         _owner_profile_html_cache_put(pac, html, robots_meta)
+        _maybe_malloc_trim('owner')
         return _owner_profile_response(html, robots_meta)
     finally:
         _EXPENSIVE_BUILD_GATE.release()
@@ -26554,6 +26556,7 @@ def _provider_page_impl(ccn):
             _PROVIDER_PAGE_CACHE[prov] = (now, html)
             _enforce_provider_page_html_budget()
         _log_mem('route_provider_after', gc_collect=True)
+        _maybe_malloc_trim('provider')
         timer.outcome = 'cold_render'
         timer.status = 200
         return html, 200, _provider_page_html_headers(cache_hit=False)
@@ -26733,6 +26736,7 @@ def _entity_page_impl(entity_id):
         )
         _entity_page_cache_put(canonical_entity_id, html, time.time())
         _log_mem("route_entity_after")
+        _maybe_malloc_trim('entity')
         return html, 200, _entity_page_html_headers(cache_hit=False)
     finally:
         _EXPENSIVE_BUILD_GATE.release()

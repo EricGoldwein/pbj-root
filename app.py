@@ -9080,53 +9080,86 @@ def _ensure_state_case_mix_medians(raw_quarter: str) -> dict[str, float]:
 
 
 _PROVIDER_INFO_HISTORY_PATH = os.path.join(APP_ROOT, 'data', 'derived', 'provider_info_history.parquet')
-_PROVIDER_INFO_HISTORY_CACHE = None  # DataFrame indexed by (ccn, pbj_quarter), or False if unavailable
-_PROVIDER_INFO_HISTORY_QUARTERS_CACHE = None  # sorted list of quarter_cy strings present in the artifact
+_PROVIDER_INFO_HISTORY_AVAILABLE_CACHE = None  # True/False once probed; never re-probes the filesystem per request
+
+# Bounded per-CCN cache: ccn -> {quarter_cy: row_dict}, built from a single predicate-pushdown
+# Parquet read (filters=[('ccn','==',ccn)]) -- never the full ~484k-row national table. Capped
+# and LRU-evicted so it cannot regrow into the process-global national DataFrame this replaced
+# (that artifact, loaded whole on the first historical-fallback lookup of the process's life and
+# never evicted, added ~250-300MB of permanent resident memory to a single-worker 2GB Render
+# dyno -- see the Sept 2026 provider-info OOM incident notes). See
+# scripts/build_provider_info_history.py's PARQUET_ROW_GROUP_SIZE for the on-disk layout
+# (small row groups, sorted by ccn) that makes this pushdown actually skip most of the file
+# instead of decoding it fully and filtering after the fact.
+_PROVIDER_INFO_HISTORY_CCN_LRU: OrderedDict = OrderedDict()
+_PROVIDER_INFO_HISTORY_CCN_LRU_LOCK = threading.Lock()
+_PROVIDER_INFO_HISTORY_CCN_LRU_MAX = max(
+    32, int(os.environ.get('PBJ_PROVIDER_INFO_HISTORY_CCN_LRU', '256'))
+)
 
 
-def _load_provider_info_history_artifact(force_refresh: bool = False):
-    """Load the compact historical Provider Info artifact (see scripts/build_provider_info_history.py).
+def _provider_info_history_artifact_available() -> bool:
+    """Cheap, cached existence/readability probe -- never loads the dataset itself."""
+    global _PROVIDER_INFO_HISTORY_AVAILABLE_CACHE
+    if _PROVIDER_INFO_HISTORY_AVAILABLE_CACHE is not None:
+        return _PROVIDER_INFO_HISTORY_AVAILABLE_CACHE
+    _PROVIDER_INFO_HISTORY_AVAILABLE_CACHE = bool(
+        get_pd() is not None and os.path.isfile(_PROVIDER_INFO_HISTORY_PATH)
+    )
+    return _PROVIDER_INFO_HISTORY_AVAILABLE_CACHE
 
-    Extends quarter coverage PAST what's discoverable from live provider_info/
-    snapshots (that folder only carries a rolling window of recent months) --
-    this is a periodically-rebuilt, checked-in Parquet file, not something
-    fetched live. Returns None (cached as False) when the file is absent or
-    pandas/pyarrow can't read it, so callers degrade to "no historical match"
-    rather than erroring -- this artifact is a coverage EXTENSION, never a
-    hard dependency of the live resolver path.
+
+def _clear_provider_info_history_cache() -> None:
+    global _PROVIDER_INFO_HISTORY_AVAILABLE_CACHE
+    with _PROVIDER_INFO_HISTORY_CCN_LRU_LOCK:
+        _PROVIDER_INFO_HISTORY_CCN_LRU.clear()
+    _PROVIDER_INFO_HISTORY_AVAILABLE_CACHE = None
+
+
+def _load_provider_info_history_rows_for_ccn(ccn: str) -> dict | None:
+    """Bounded, CCN-scoped read of the historical Provider Info Parquet artifact
+    (see scripts/build_provider_info_history.py). Extends quarter coverage PAST what's
+    discoverable from live provider_info/ snapshots (that folder only carries a rolling
+    window of recent months) -- this is a periodically-rebuilt, checked-in Parquet file,
+    not something fetched live.
+
+    One pyarrow predicate-pushdown read per CCN (filters=[('ccn','==',ccn)]), cached in a
+    small bounded per-process LRU (_PROVIDER_INFO_HISTORY_CCN_LRU_MAX entries, a handful of
+    rows each) -- never the full national dataset, and never an unbounded/permanent cache.
+    Returns None when the file is absent, unreadable, or has no rows for this CCN, so
+    callers degrade to "no historical match" rather than erroring -- this artifact is a
+    coverage EXTENSION, never a hard dependency of the live resolver path.
     """
-    global _PROVIDER_INFO_HISTORY_CACHE, _PROVIDER_INFO_HISTORY_QUARTERS_CACHE
-    if not force_refresh and _PROVIDER_INFO_HISTORY_CACHE is not None:
-        return _PROVIDER_INFO_HISTORY_CACHE if _PROVIDER_INFO_HISTORY_CACHE is not False else None
-    if get_pd() is None or not os.path.isfile(_PROVIDER_INFO_HISTORY_PATH):
-        _PROVIDER_INFO_HISTORY_CACHE = False
-        _PROVIDER_INFO_HISTORY_QUARTERS_CACHE = []
+    ccn = str(ccn or '').strip().zfill(6)
+    if len(ccn) != 6:
         return None
+    with _PROVIDER_INFO_HISTORY_CCN_LRU_LOCK:
+        hit = _PROVIDER_INFO_HISTORY_CCN_LRU.get(ccn)
+        if hit is not None:
+            _PROVIDER_INFO_HISTORY_CCN_LRU.move_to_end(ccn)
+            return hit or None
+    if not _provider_info_history_artifact_available():
+        return None
+    rows_by_quarter: dict = {}
     try:
-        df = pd.read_parquet(_PROVIDER_INFO_HISTORY_PATH, engine='pyarrow')
-        # Low/moderate-cardinality columns as category dtype: ~484k rows of repeated
-        # Python string objects (34 quarters, ~34 source files, 51 states, a handful of
-        # rating/status codes -- even ccn repeats ~30x) cost ~3x the memory of the
-        # equivalent category-coded columns. Measured: 257 MB -> 84 MB deep memory
-        # for this artifact. Loaded lazily (only when a request needs a quarter/CCN
-        # the live provider_info/ snapshot window doesn't cover), never at app startup.
-        for col in (
-            'ccn', 'pbj_quarter', 'processing_date', 'source_filename', 'state',
-            'sff_status', 'abuse_icon', 'provider_changed_ownership_in_last_12_months',
-        ):
-            if col in df.columns:
-                df[col] = df[col].astype('category')
-        df = df.set_index(['ccn', 'pbj_quarter'], drop=False).sort_index()
-        _PROVIDER_INFO_HISTORY_CACHE = df
-        _PROVIDER_INFO_HISTORY_QUARTERS_CACHE = sorted(
-            df['pbj_quarter'].unique().tolist(), key=lambda q: _quarter_cy_sort_key(q) or (0, 0)
-        )
-        return df
+        import pyarrow.parquet as pq
+
+        table = pq.read_table(_PROVIDER_INFO_HISTORY_PATH, filters=[('ccn', '==', ccn)])
+        if table.num_rows:
+            df = table.to_pandas()
+            for _, row in df.iterrows():
+                q_cy = str(row.get('pbj_quarter') or '').strip()
+                if q_cy:
+                    rows_by_quarter[q_cy] = row.to_dict()
     except Exception as e:
-        print(f"[PROVIDER_INFO_HISTORY] failed to load {_PROVIDER_INFO_HISTORY_PATH}: {e}")
-        _PROVIDER_INFO_HISTORY_CACHE = False
-        _PROVIDER_INFO_HISTORY_QUARTERS_CACHE = []
+        print(f"[PROVIDER_INFO_HISTORY] failed CCN-scoped read for {ccn}: {e}")
         return None
+    with _PROVIDER_INFO_HISTORY_CCN_LRU_LOCK:
+        _PROVIDER_INFO_HISTORY_CCN_LRU[ccn] = rows_by_quarter
+        _PROVIDER_INFO_HISTORY_CCN_LRU.move_to_end(ccn)
+        while len(_PROVIDER_INFO_HISTORY_CCN_LRU) > _PROVIDER_INFO_HISTORY_CCN_LRU_MAX:
+            _PROVIDER_INFO_HISTORY_CCN_LRU.popitem(last=False)
+    return rows_by_quarter or None
 
 
 def _historical_provider_info_row_for_ccn_quarter(ccn: str, raw_quarter: str) -> dict | None:
@@ -9135,34 +9168,34 @@ def _historical_provider_info_row_for_ccn_quarter(ccn: str, raw_quarter: str) ->
     resolve_provider_info_snapshot_path_for_quarter's semantics exactly, against a different
     (older, wider-coverage) source. Only consulted after the live provider_info/ snapshot
     scan finds nothing for this (ccn, quarter) -- see get_provider_info_for_quarter.
+
+    All (ccn, quarter) pairs for one CCN resolve against a single cached
+    _load_provider_info_history_rows_for_ccn() call -- one bounded, CCN-scoped Parquet
+    read per render, however many distinct quarters that render's chart series asks for.
     """
-    df = _load_provider_info_history_artifact()
-    if df is None:
-        return None
+    ccn = str(ccn or '').strip().zfill(6)
     target_key = _quarter_cy_sort_key(raw_quarter)
     if target_key is None:
         return None
-    ccn = str(ccn or '').strip().zfill(6)
+    rows_by_quarter = _load_provider_info_history_rows_for_ccn(ccn)
+    if not rows_by_quarter:
+        return None
     target_cy = f'{target_key[0]}Q{target_key[1]}'
-    quarters = _PROVIDER_INFO_HISTORY_QUARTERS_CACHE or []
     match_cy = None
-    if (ccn, target_cy) in df.index:
+    if target_cy in rows_by_quarter:
         match_cy = target_cy
     else:
         best_key = None
-        for q_cy in quarters:
+        for q_cy in rows_by_quarter:
             k = _quarter_cy_sort_key(q_cy)
             if k is None or k >= target_key:
-                continue
-            if (ccn, q_cy) not in df.index:
                 continue
             if best_key is None or k > best_key:
                 best_key = k
                 match_cy = q_cy
     if match_cy is None:
         return None
-    row = df.loc[(ccn, match_cy)]
-    out = row.to_dict()
+    out = dict(rows_by_quarter[match_cy])
     out['_source'] = 'historical_archive'
     out['_matched_quarter'] = match_cy
     return out
@@ -9174,23 +9207,30 @@ def _scan_provider_row_for_ccn_quarter(ccn: str, raw_quarter: str) -> dict | Non
     Snapshot selection is deterministic -- see resolve_provider_info_snapshot_path_for_quarter()
     -- rather than "first file matching this quarter tag in directory-scan order", so this
     agrees with the warmed national cache regardless of which one runs first.
+
+    Cached (and looked up) by the RESOLVED canonical quarter (``matched_q``), not the raw
+    requested quarter: many distinct raw quarters can resolve to the same nearest-PRIOR
+    canonical snapshot (see resolve_provider_info_snapshot_path_for_quarter), and without
+    this a chart series requesting many historical quarters for one CCN re-scanned the same
+    live snapshot CSV in full, once per distinct raw quarter, on every single page render.
     """
+    global _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE
     if get_pd() is None:
         return None
     ccn = str(ccn or '').strip().zfill(6)
     q = str(raw_quarter or '').strip()
     if len(ccn) != 6 or not q:
         return None
-    if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE:
-        hit = _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.get((ccn, q))
-        if hit:
-            # Cache is keyed by exact (ccn, quarter) -- a hit is definitionally an exact match.
-            hit.setdefault('_source', 'live_snapshot')
-            hit.setdefault('_matched_quarter', q)
-            return hit
     path, matched_q = resolve_provider_info_snapshot_path_for_quarter(q)
     if not path or not os.path.isfile(path):
         return None
+    cache_key = (ccn, matched_q or q)
+    if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE:
+        hit = _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.get(cache_key)
+        if hit:
+            hit.setdefault('_source', 'live_snapshot')
+            hit.setdefault('_matched_quarter', matched_q or q)
+            return hit
     try:
         header_cols = set(pd.read_csv(path, nrows=0).columns)
         ccn_cols = [c for c in header_cols if str(c).lower() in ('ccn', 'provnum') or 'ccn' in str(c).lower()]
@@ -9214,6 +9254,10 @@ def _scan_provider_row_for_ccn_quarter(ccn: str, raw_quarter: str) -> dict | Non
                 out = _provider_metrics_from_csv_row(row)
                 out['_source'] = 'live_snapshot'
                 out['_matched_quarter'] = matched_q or q
+                if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE is None:
+                    _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = {}
+                _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE[cache_key] = out
+                _trim_provider_info_caches()
                 return out
     except Exception as e:
         print(f"Error scanning provider row for {ccn} {q} from {path}: {e}")

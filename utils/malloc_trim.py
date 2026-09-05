@@ -8,8 +8,18 @@ trims. Fails open (no-op) on any non-Linux platform, when libc/malloc_trim is
 unavailable, or when RSS can't be read. Never touches Python-level caches --
 this only asks glibc to return already-freed arena pages to the OS.
 
+Experimental production behavior: OFF by default. Merging this file does not
+activate trimming -- it requires explicit opt-in via PBJ_MALLOC_TRIM_ENABLED=1.
+
+Logging: only an actual trim, a genuine failure (libc/RSS unavailable, the
+malloc_trim() call itself raising), or unusual concurrency (a trim already in
+flight) is logged. The routine per-request outcomes -- disabled, below the
+RSS threshold, still cooling down -- are silent by design: those are the
+common case on every admitted cold build, and logging each one would put one
+extra line in production logs per cold build for no operational benefit.
+
 Env vars (conservative test defaults -- not tuned for production):
-  PBJ_MALLOC_TRIM_ENABLED           default '1'
+  PBJ_MALLOC_TRIM_ENABLED           default '0' (opt-in)
   PBJ_MALLOC_TRIM_RSS_THRESHOLD_MB  default '1200'
   PBJ_MALLOC_TRIM_MIN_INTERVAL_S    default '60'
 """
@@ -87,8 +97,11 @@ def maybe_trim(route_family: str) -> None:
     """
     global _LAST_TRIM_MONOTONIC
 
-    if not _env_bool('PBJ_MALLOC_TRIM_ENABLED', True):
-        _emit({'event': 'malloc_trim', 'route_family': route_family, 'ran': False, 'skip_reason': 'disabled'})
+    # Default OFF: this is experimental production behavior and must not
+    # silently activate just because this module got merged. Silent skip --
+    # this is the routine, expected outcome on every admitted cold build
+    # while the mechanism is disabled, not a failure worth logging.
+    if not _env_bool('PBJ_MALLOC_TRIM_ENABLED', False):
         return
     if _LIBC is None:
         _emit({'event': 'malloc_trim', 'route_family': route_family, 'ran': False, 'skip_reason': 'libc_unavailable'})
@@ -101,14 +114,9 @@ def maybe_trim(route_family: str) -> None:
 
     threshold_mb = _env_float('PBJ_MALLOC_TRIM_RSS_THRESHOLD_MB', 1200.0)
     if rss_before < threshold_mb:
-        _emit({
-            'event': 'malloc_trim',
-            'route_family': route_family,
-            'ran': False,
-            'skip_reason': 'below_threshold',
-            'rss_before_mb': rss_before,
-            'threshold_mb': threshold_mb,
-        })
+        # Silent skip -- this is the routine outcome on nearly every admitted
+        # cold build (RSS has not yet reached the high-water mark), not a
+        # failure or anything operationally interesting.
         return
 
     if not _LOCK.acquire(blocking=False):
@@ -126,15 +134,9 @@ def maybe_trim(route_family: str) -> None:
         now = time.monotonic()
         elapsed = now - _LAST_TRIM_MONOTONIC
         if _LAST_TRIM_MONOTONIC and elapsed < min_interval_s:
-            _emit({
-                'event': 'malloc_trim',
-                'route_family': route_family,
-                'ran': False,
-                'skip_reason': 'cooldown',
-                'rss_before_mb': rss_before,
-                'seconds_since_last_trim': round(elapsed, 1),
-                'min_interval_s': min_interval_s,
-            })
+            # Silent skip -- routine once trimming is active (RSS stays over
+            # threshold between trims far more often than the cooldown has
+            # elapsed), not a failure or anything operationally interesting.
             return
 
         t0 = time.monotonic()

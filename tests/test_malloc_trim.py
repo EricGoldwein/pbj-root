@@ -52,13 +52,27 @@ class MallocTrimUnitTests(unittest.TestCase):
 
     # -- fail-open paths -----------------------------------------------
 
-    def test_disabled_is_noop(self) -> None:
+    def test_disabled_is_noop_and_silent(self) -> None:
         with patch.dict("os.environ", {"PBJ_MALLOC_TRIM_ENABLED": "0"}), \
              patch.object(malloc_trim_mod, "_LIBC", self._fake_libc()) as libc, \
              patch("sys.stderr.write") as write:
             malloc_trim_mod.maybe_trim("provider")
         libc.malloc_trim.assert_not_called()
-        self.assertEqual(self._last_log(write)["skip_reason"], "disabled")
+        # Disabled is the routine outcome while opted out -- must not log.
+        write.assert_not_called()
+
+    def test_default_is_disabled_when_env_var_unset(self) -> None:
+        """Merging this module must not silently activate trimming: with no
+        PBJ_MALLOC_TRIM_ENABLED set at all, the default is off."""
+        import os as _os
+
+        with patch.dict(_os.environ, {}, clear=False):
+            _os.environ.pop("PBJ_MALLOC_TRIM_ENABLED", None)
+            with patch.object(malloc_trim_mod, "_LIBC", self._fake_libc()) as libc, \
+                 patch("sys.stderr.write") as write:
+                malloc_trim_mod.maybe_trim("provider")
+            libc.malloc_trim.assert_not_called()
+            write.assert_not_called()
 
     def test_libc_unavailable_is_noop(self) -> None:
         with patch.object(malloc_trim_mod, "_LIBC", None), \
@@ -89,15 +103,15 @@ class MallocTrimUnitTests(unittest.TestCase):
 
     # -- threshold / cooldown gating ------------------------------------
 
-    def test_below_threshold_skips(self) -> None:
+    def test_below_threshold_skips_silently(self) -> None:
         with patch.object(malloc_trim_mod, "_LIBC", self._fake_libc()) as libc, \
              patch.object(malloc_trim_mod, "mem_rss_mb", return_value=999.0), \
              patch("sys.stderr.write") as write:
             malloc_trim_mod.maybe_trim("owner")
         libc.malloc_trim.assert_not_called()
-        log = self._last_log(write)
-        self.assertEqual(log["skip_reason"], "below_threshold")
-        self.assertEqual(log["rss_before_mb"], 999.0)
+        # Below-threshold is the routine outcome on nearly every admitted
+        # cold build -- must not log (that's the noise this hook must avoid).
+        write.assert_not_called()
 
     def test_at_or_above_threshold_runs_once_then_cools_down(self) -> None:
         libc = self._fake_libc()
@@ -115,12 +129,13 @@ class MallocTrimUnitTests(unittest.TestCase):
         self.assertIn("trim_duration_ms", log)
 
         # Immediately eligible again (RSS still over threshold) but within
-        # the cooldown window -- must skip, not trim a second time.
+        # the cooldown window -- must skip, not trim a second time, and must
+        # not log (cooldown skips are routine once trimming is active).
         with patch.object(malloc_trim_mod, "mem_rss_mb", return_value=1500.0), \
              patch("sys.stderr.write") as write2:
             malloc_trim_mod.maybe_trim("entity")
         libc.malloc_trim.assert_called_once()  # still just the one call
-        self.assertEqual(self._last_log(write2)["skip_reason"], "cooldown")
+        write2.assert_not_called()
 
     def test_cooldown_expires_and_allows_next_trim(self) -> None:
         libc = self._fake_libc()
@@ -146,7 +161,7 @@ class MallocTrimUnitTests(unittest.TestCase):
         libc.malloc_trim.side_effect = slow_trim
         with patch.object(malloc_trim_mod, "_LIBC", libc), \
              patch.object(malloc_trim_mod, "mem_rss_mb", return_value=1500.0), \
-             patch("sys.stderr.write"):
+             patch("sys.stderr.write") as write:
             with ThreadPoolExecutor(max_workers=2) as pool:
                 f1 = pool.submit(malloc_trim_mod.maybe_trim, "provider")
                 time.sleep(0.05)  # let f1 acquire the lock first
@@ -156,6 +171,11 @@ class MallocTrimUnitTests(unittest.TestCase):
                 f1.result(timeout=2)
                 f2.result(timeout=2)
         libc.malloc_trim.assert_called_once()
+        # The losing thread's contention is unusual/interesting -- unlike
+        # routine below-threshold/cooldown skips, it must still be logged.
+        logged = [json.loads(c.args[0][len("[MALLOC_TRIM] "):]) for c in write.call_args_list]
+        skip_reasons = {entry.get("skip_reason") for entry in logged if not entry.get("ran")}
+        self.assertIn("trim_in_progress", skip_reasons)
 
 
 class MallocTrimWiringTests(unittest.TestCase):
